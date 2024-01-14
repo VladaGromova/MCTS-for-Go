@@ -1,5 +1,4 @@
 #include <math.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
@@ -7,8 +6,11 @@
 #include <utility>
 #include <vector>
 
-#define SIZE 5
 #define C sqrt(2)
+#define SIZE 9
+#define NUM_OF_MOVEMENTS_IN_SIMULATION 10
+#define MAX_DEPTH 15 // tyle razy wykonamy te 3 etapy
+#define MOVEMENTS 60
 
 enum State { EMPTY, BLACK, WHITE };
 
@@ -91,7 +93,6 @@ bool isKo(State prev[SIZE][SIZE], State actual[SIZE][SIZE]) {
   }
   return true;
 }
-
 
 void generateRandomCell(int &randomRow, int &randomCol) {
   randomRow = std::rand() % SIZE;
@@ -305,7 +306,7 @@ State randomPlays(Node *n, State state) {
   int index = 0;
   int lost_white_stones = 0;
   int lost_black_stones = 0;
-  while (index<20) {
+  while (index < NUM_OF_MOVEMENTS_IN_SIMULATION) {
     ++index;
     do {
       ++num_of_tries;
@@ -408,16 +409,6 @@ void backpropagate(Node *n) {
   }
 }
 
-std::pair<int, int> getDiff(State prev[SIZE][SIZE], State act[SIZE][SIZE]) {
-  for (int i = 0; i < SIZE; ++i) {
-    for (int j = 0; j < SIZE; ++j) {
-      if (prev[i][j] != act[i][j]) {
-        return std::make_pair(i, j);
-      }
-    }
-  }
-}
-
 void testing() { 
     createNeighbours();
     State testing_board[SIZE][SIZE] = {
@@ -442,8 +433,6 @@ int main(int argc, char **argv) {
       actual_board[i][j] = EMPTY;
     }
   }
-
- 
   
   Node MCTS_head;
   copyBoard(actual_board, MCTS_head.board);
@@ -457,17 +446,12 @@ int main(int argc, char **argv) {
 
   int num_of_test_movements = 0;
   int num_of_tree_searches = 0;
-  //State tmp_state;
   int lost_white_stones = 0;
   int lost_black_stones = 0;
   State whoose_move;
-
-  int MAX_DEPTH = 10; // tyle razy wykonamy te 3 etapy
-  int MOVEMENTS = 20;
-  int MOVEMENTS_IN_SIMULATIONS = 10;
+  
   int max_depth_ind = 0;
   int mov_ind = 0;
-  int mov_sim_ind = 0;
   while (mov_ind < MOVEMENTS) {
     max_depth_ind = 0;
     while (max_depth_ind < MAX_DEPTH) {
