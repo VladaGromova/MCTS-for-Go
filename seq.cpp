@@ -20,6 +20,8 @@ typedef struct Node {
   State board[SIZE][SIZE];
   std::vector<Node *> children = std::vector<Node *>();
   Node *parent = NULL;
+  int taken_black_stones = 0;
+  int taken_white_stones = 0;
   unsigned int number_of_simulations = 0;
   double black_score = 0.0;
   double uct;
@@ -29,6 +31,7 @@ typedef struct Node {
     }
   }
 } Node;
+
 
 double calculateUct(Node *n, State state) {
   if (n->number_of_simulations == 0) {
@@ -89,14 +92,6 @@ bool isKo(State prev[SIZE][SIZE], State actual[SIZE][SIZE]) {
   return true;
 }
 
-void createChildren(Node *n, int i, int j, State state) {
-  //Node childNode;
-  Node *childNode = new Node(); 
-  copyBoard(n->board, childNode->board);
-  childNode->board[i][j] = state;
-  n->children.push_back(childNode);
-  childNode->parent = n;
-}
 
 void generateRandomCell(int &randomRow, int &randomCol) {
   randomRow = std::rand() % SIZE;
@@ -169,9 +164,10 @@ std::pair<bool, std::vector<std::pair<int, int>>> couldPlaceStone(
     if (board[stones_reached_by_mine[i].first]
                 [stones_reached_by_mine[i].second] !=
         EMPTY) {  // dla kazego kamienia z sąsiadujących
-      auto reached_by_opponent = findReached(board, stones_reached_by_mine[i].first,
-                                             stones_reached_by_mine[i].second)
-                                     .second;
+      auto tmp_chain_reached = findReached(board, stones_reached_by_mine[i].first,
+                      stones_reached_by_mine[i].second);
+      auto potential_captured = tmp_chain_reached.first;
+      auto reached_by_opponent = tmp_chain_reached.second;
       int j = 0;
       for (j = 0; j < reached_by_opponent.size();
            ++j) {  // dla kazdego wezla co jest obok kamienia przeciwnika
@@ -181,8 +177,13 @@ std::pair<bool, std::vector<std::pair<int, int>>> couldPlaceStone(
         }
       }
       if (j == reached_by_opponent.size()) {
-        taken_stones.push_back(std::make_pair(
-            stones_reached_by_mine[i].first, stones_reached_by_mine[i].second));
+        for (int ind = 0; ind < potential_captured.size(); ++ind) {
+          //board[potential_captured[ind].first][potential_captured[ind].second] = EMPTY; // NEW
+          taken_stones.push_back(std::make_pair(
+              potential_captured[ind].first, potential_captured[ind].second));
+        }
+       /* taken_stones.push_back(std::make_pair(
+            stones_reached_by_mine[i].first, stones_reached_by_mine[i].second));*/
       }
     }
   }
@@ -198,6 +199,7 @@ std::pair<bool, std::vector<std::pair<int, int>>> couldPlaceStone(
     }
     if (j == stones_reached_by_mine
                  .size()) {  // only opponent stones surround me, suicide
+      board[row][col] = EMPTY;
       return std::make_pair(false, taken_stones);
     }
   }
@@ -211,6 +213,29 @@ std::pair<bool, std::vector<std::pair<int, int>>> couldPlaceStone(
   
   board[row][col] = EMPTY;
   return std::make_pair(true, taken_stones);
+}
+
+
+void createChildren(Node *n, int i, int j, State state) {
+  // Node childNode;
+  auto taken_stones = couldPlaceStone(n->board, i, j, state).second;
+  Node *childNode = new Node();
+  copyBoard(n->board, childNode->board);
+  childNode->board[i][j] = state;
+  childNode->taken_black_stones = n->taken_black_stones;
+  childNode->taken_white_stones = n->taken_white_stones;
+  for (int i = 0; i < taken_stones.size(); ++i) {
+    childNode->board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
+  }
+  if (state == BLACK) {
+    childNode->taken_white_stones =
+        childNode->taken_white_stones + taken_stones.size();
+  } else {
+    childNode->taken_black_stones =
+        childNode->taken_black_stones + taken_stones.size();
+  }
+  n->children.push_back(childNode);
+  childNode->parent = n;
 }
 
 std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
@@ -332,9 +357,7 @@ void expand(Node *n, State state) {
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (couldPlaceStone(n->board, i, j, state).first) {
-        createChildren(
-            n, i, j,
-            state);  // i j - tu ustawimy kamien i takie dziecko dodamy do n
+        createChildren(n, i, j, state);  // i j - tu ustawimy kamien i takie dziecko dodamy do n
       }
     }
   }
@@ -395,7 +418,21 @@ std::pair<int, int> getDiff(State prev[SIZE][SIZE], State act[SIZE][SIZE]) {
   }
 }
 
+void testing() { 
+    createNeighbours();
+    State testing_board[SIZE][SIZE] = {
+        {BLACK, WHITE, WHITE, EMPTY, EMPTY},
+        {EMPTY, BLACK, BLACK, WHITE, EMPTY},
+        {EMPTY, EMPTY, EMPTY, EMPTY, EMPTY},
+        {EMPTY, EMPTY, EMPTY, EMPTY, EMPTY},
+        {BLACK, EMPTY, EMPTY, EMPTY, WHITE}
+    }; 
+    auto res = couldPlaceStone(testing_board, 0, 3, BLACK);
+    int i = 0;
+}
+
 int main(int argc, char **argv) {
+  //testing();
   std::srand(std::time(0));
   createNeighbours();
   bool is_black = true;
@@ -405,6 +442,8 @@ int main(int argc, char **argv) {
       actual_board[i][j] = EMPTY;
     }
   }
+
+ 
   
   Node MCTS_head;
   copyBoard(actual_board, MCTS_head.board);
@@ -432,7 +471,14 @@ int main(int argc, char **argv) {
   while (mov_ind < MOVEMENTS) {
     max_depth_ind = 0;
     while (max_depth_ind < MAX_DEPTH) {
-      if (max_depth_ind % 2 == 0) {
+      // tree walking
+      actual_node = root_node;
+      int local_depth = 0;
+      while (actual_node->children.size() != 0) {
+        ++local_depth;
+        actual_node = findMaxUctChild(actual_node, actual_state); // select
+      }
+      if (local_depth % 2 == 0) {
         whoose_move = actual_state;
       } else {
         if (actual_state == BLACK) {  // przekazujemy prawo ruchu innemy graczowi
@@ -441,11 +487,7 @@ int main(int argc, char **argv) {
           whoose_move = BLACK;
         }
       }
-      // tree walking
-      actual_node = root_node;
-      while (actual_node->children.size() != 0) {
-        actual_node = findMaxUctChild(actual_node, actual_state); // select
-      }
+
       expand(actual_node, whoose_move);
       simulate(actual_node, whoose_move);
       backpropagate(actual_node);
@@ -453,74 +495,29 @@ int main(int argc, char **argv) {
       ++max_depth_ind;
     }
     root_node = findMaxUctChild(root_node, actual_state);
-
-
+    if (root_node->taken_black_stones != 0 ||
+        root_node->taken_white_stones != 0) {
+      int a = 0;
+    }
+    std::cout << "\nNr: " << mov_ind << '\n';
+    printBoard(root_node);
+    std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
+    std::cout << "Lost white stones: " << root_node->taken_white_stones << '\n';
     if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
       actual_state = WHITE;
     } else {
       actual_state = BLACK;
     }
-    ++max_depth_ind;
+    ++mov_ind;
   }
-
-  //while (num_of_test_movements < 20) {
-  //  ++num_of_test_movements;
-  //  actual_node = root_node;
-  //  depth = 0;
-  //  while (!actual_node->children.empty()) {  // select
-  //    ++depth;
-  //    actual_node = findMaxUctChild(actual_node, actual_state);
-  //  }
-  //  if (actual_state == BLACK && depth % 2 == 0 ) {
-  //    whoose_move = BLACK;
-  //  } else {
-  //    whoose_move = WHITE;
-  //  }
-  //  expand(actual_node, whoose_move);
-  //  for (auto child : actual_node->children) {
-  //    simulate(child, actual_state);
-  //  }
-  //  /////////////////////
-  //  tmp_state = actual_state;
-  //  num_of_tree_searches = 0;
-  //  while (num_of_tree_searches < 5) {
-  //    ++num_of_tree_searches;
-  //    simulate(actual_node, tmp_state);
-  //    backpropagate(actual_node);
-  //    if (tmp_state == BLACK) {
-  //      tmp_state = WHITE;
-  //    } else {
-  //      tmp_state = BLACK;
-  //    }
-  //  }
-  //  auto new_root_node = findMaxUctChild(root_node, actual_state); // making move
-  //  auto movement = getDiff(root_node->board, new_root_node->board);
-  //  auto tmp_res = couldPlaceStone(root_node->board, movement.first,
-  //                                 movement.second, actual_state);
-  //  auto taken_stones = tmp_res.second;
-  //  
-  //  root_node->board[movement.first][movement.second] = actual_state;
-  //  //copyBoard(new_root_node->board, root_node->board);  // root_node = new_root_node;
-  //  for (int i = 0; i < taken_stones.size(); ++i) {
-  //    root_node->board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
-  //  }
-  //  printBoard(root_node);
-  //  // !!!!!!!! change previous position somewhere
-  //  if (actual_state == BLACK) {
-  //    actual_state = WHITE;
-  //    lost_white_stones += taken_stones.size();
-  //  } else {
-  //    actual_state = BLACK;
-  //    lost_black_stones += taken_stones.size();
-  //  }
-  //}
-
 
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
-  std::cout << "Lost black stones territory: " << lost_black_stones << '\n';
-  std::cout << "Lost white stones territory: " << lost_white_stones << '\n';
+  lost_black_stones = root_node->taken_black_stones;
+  lost_white_stones = root_node->taken_white_stones;
+  std::cout << "Lost black stones: " << lost_black_stones << '\n';
+  std::cout << "Lost white stones: " << lost_white_stones << '\n';
   if ((main_results.first + lost_white_stones) >
       (main_results.second + lost_black_stones)) {
     std::cout << "BLACK won\n";
@@ -530,6 +527,5 @@ int main(int argc, char **argv) {
   } else {
     std::cout << "DRAW\n";
   }
-  std::cout << "test\n";
   return 0;
 }
