@@ -264,7 +264,7 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
   return std::make_pair(black_territory, white_territory);
 }
 
-State simulate(Node *n, State state) {
+State randomPlays(Node *n, State state) {
   State board_for_random_play[SIZE][SIZE];
   copyBoard(n->board, board_for_random_play);
   int random_row, random_col;
@@ -297,17 +297,16 @@ State simulate(Node *n, State state) {
       lost_black_stones += taken_stones.size();
       copyBoard(board_for_random_play, previousPositionForBlack);
     }
-    for (int i = 0; i < taken_stones.size(); ++i) { // taking oppoents' stones
-      board_for_random_play[taken_stones[i].first][taken_stones[i].second] =
-          EMPTY;
-    }
     // change state from black to white and vice versa
     if (state == BLACK) {
       state = WHITE;
     } else {
       state = BLACK;
     }
-    //
+    for (int i = 0; i < taken_stones.size(); ++i) { // taking oppoents' stones
+      board_for_random_play[taken_stones[i].first][taken_stones[i].second] =
+          EMPTY;
+    }
     // !!! create condition for in_process (do poki są EMPTY ??)
     num_of_tries = 0;
   }
@@ -339,6 +338,9 @@ void expand(Node *n, State state) {
       }
     }
   }
+}
+
+void simulate(Node *n, State state) {
   State winner;
   for (int i = 0; i < n->children.size(); ++i) {
     if (state == BLACK) {
@@ -346,12 +348,16 @@ void expand(Node *n, State state) {
     } else {
       copyBoard(n->board, previousPositionForWhite);
     }
-    winner = simulate(n->children[i], state);
+    winner = randomPlays(n->children[i], state);
     n->number_of_simulations = n->number_of_simulations + 1;
+    n->children[i]->number_of_simulations =
+        n->children[i]->number_of_simulations + 1;
     if (winner == BLACK) {
       n->black_score = n->black_score + 1.0;
+      n->children[i]->black_score = n->children[i]->black_score + 1.0;
     } else if (winner == EMPTY) {
       n->black_score = n->black_score + 0.5;
+      n->children[i]->black_score = n->children[i]->black_score + 0.5;
     }
   }
 }
@@ -379,6 +385,16 @@ void backpropagate(Node *n) {
   }
 }
 
+std::pair<int, int> getDiff(State prev[SIZE][SIZE], State act[SIZE][SIZE]) {
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      if (prev[i][j] != act[i][j]) {
+        return std::make_pair(i, j);
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   std::srand(std::time(0));
   createNeighbours();
@@ -402,29 +418,118 @@ int main(int argc, char **argv) {
 
   int num_of_test_movements = 0;
   int num_of_tree_searches = 0;
-  while (num_of_test_movements < 13) {
-    ++num_of_test_movements;
-    num_of_tree_searches = 0;
-    while (num_of_tree_searches < 5) {
-      ++num_of_tree_searches;
-      actual_node = root_node;
-      while (!actual_node->children.empty()) {  // select
-        actual_node = findMaxUctChild(actual_node, actual_state);
+  //State tmp_state;
+  int lost_white_stones = 0;
+  int lost_black_stones = 0;
+  State whoose_move;
+
+  int MAX_DEPTH = 10; // tyle razy wykonamy te 3 etapy
+  int MOVEMENTS = 20;
+  int MOVEMENTS_IN_SIMULATIONS = 10;
+  int max_depth_ind = 0;
+  int mov_ind = 0;
+  int mov_sim_ind = 0;
+  while (mov_ind < MOVEMENTS) {
+    max_depth_ind = 0;
+    while (max_depth_ind < MAX_DEPTH) {
+      if (max_depth_ind % 2 == 0) {
+        whoose_move = actual_state;
+      } else {
+        if (actual_state == BLACK) {  // przekazujemy prawo ruchu innemy graczowi
+          whoose_move = WHITE;
+        } else {
+          whoose_move = BLACK;
+        }
       }
-      expand(actual_node, actual_state);
+      // tree walking
+      actual_node = root_node;
+      while (actual_node->children.size() != 0) {
+        actual_node = findMaxUctChild(actual_node, actual_state); // select
+      }
+      expand(actual_node, whoose_move);
+      simulate(actual_node, whoose_move);
       backpropagate(actual_node);
+      // end of tree walking
+      ++max_depth_ind;
     }
-    root_node = findMaxUctChild(root_node, actual_state); // making move
-    printBoard(root_node);
-    // !!!!!!!! change previous position somewhere
-    if (actual_state == BLACK) {
+    root_node = findMaxUctChild(root_node, actual_state);
+
+
+    if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
       actual_state = WHITE;
     } else {
       actual_state = BLACK;
     }
+    ++max_depth_ind;
   }
 
+  //while (num_of_test_movements < 20) {
+  //  ++num_of_test_movements;
+  //  actual_node = root_node;
+  //  depth = 0;
+  //  while (!actual_node->children.empty()) {  // select
+  //    ++depth;
+  //    actual_node = findMaxUctChild(actual_node, actual_state);
+  //  }
+  //  if (actual_state == BLACK && depth % 2 == 0 ) {
+  //    whoose_move = BLACK;
+  //  } else {
+  //    whoose_move = WHITE;
+  //  }
+  //  expand(actual_node, whoose_move);
+  //  for (auto child : actual_node->children) {
+  //    simulate(child, actual_state);
+  //  }
+  //  /////////////////////
+  //  tmp_state = actual_state;
+  //  num_of_tree_searches = 0;
+  //  while (num_of_tree_searches < 5) {
+  //    ++num_of_tree_searches;
+  //    simulate(actual_node, tmp_state);
+  //    backpropagate(actual_node);
+  //    if (tmp_state == BLACK) {
+  //      tmp_state = WHITE;
+  //    } else {
+  //      tmp_state = BLACK;
+  //    }
+  //  }
+  //  auto new_root_node = findMaxUctChild(root_node, actual_state); // making move
+  //  auto movement = getDiff(root_node->board, new_root_node->board);
+  //  auto tmp_res = couldPlaceStone(root_node->board, movement.first,
+  //                                 movement.second, actual_state);
+  //  auto taken_stones = tmp_res.second;
+  //  
+  //  root_node->board[movement.first][movement.second] = actual_state;
+  //  //copyBoard(new_root_node->board, root_node->board);  // root_node = new_root_node;
+  //  for (int i = 0; i < taken_stones.size(); ++i) {
+  //    root_node->board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
+  //  }
+  //  printBoard(root_node);
+  //  // !!!!!!!! change previous position somewhere
+  //  if (actual_state == BLACK) {
+  //    actual_state = WHITE;
+  //    lost_white_stones += taken_stones.size();
+  //  } else {
+  //    actual_state = BLACK;
+  //    lost_black_stones += taken_stones.size();
+  //  }
+  //}
+
+
+  auto main_results = computeTerritories(root_node->board);
+  std::cout << "\nBlack territory: " << main_results.first << '\n';
+  std::cout << "White territory: " << main_results.second << '\n';
+  std::cout << "Lost black stones territory: " << lost_black_stones << '\n';
+  std::cout << "Lost white stones territory: " << lost_white_stones << '\n';
+  if ((main_results.first + lost_white_stones) >
+      (main_results.second + lost_black_stones)) {
+    std::cout << "BLACK won\n";
+  } else if ((main_results.first + lost_white_stones) <
+             (main_results.second + lost_black_stones)) {
+    std::cout << "WHITE won\n";
+  } else {
+    std::cout << "DRAW\n";
+  }
   std::cout << "test\n";
   return 0;
 }
-
