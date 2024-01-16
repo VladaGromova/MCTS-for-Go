@@ -27,7 +27,7 @@ typedef struct Node {
   int taken_white_stones = 0;
   unsigned int number_of_simulations = 0;
   double black_score = 0.0;
-  double uct;
+  //double uct;
   ~Node() {
     for (Node *child : children) {
       delete child;
@@ -65,10 +65,8 @@ typedef struct Node {
         profitChildren.push_back(child);
       }
     }
-
     return profitChildren;
   }
-
 } Node;
 
 double calculateUct(Node *n, State state) {
@@ -76,8 +74,6 @@ double calculateUct(Node *n, State state) {
     return std::numeric_limits<double>::
         infinity(); // Return infinity if the child has not been explored yet.
   }
-
-  // UCT formula
   double w_i = 0.0;
   if (state == BLACK) {
     w_i = n->black_score;
@@ -93,14 +89,6 @@ void copyBoard(State source[SIZE][SIZE], State destination[SIZE][SIZE]) {
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       destination[i][j] = source[i][j];
-    }
-  }
-}
-
-void createRootNode(Node *n, State b[SIZE][SIZE]) {
-  for (int i = 0; i < SIZE; ++i) {
-    for (int j = 0; j < SIZE; ++j) {
-      n->board[i][j] = b[i][j];
     }
   }
 }
@@ -182,6 +170,14 @@ findReached(State board[SIZE][SIZE], int i, int j) {
   return std::make_pair(chain, reached);
 }
 
+State changeState(State state){
+  if (state == BLACK) {
+     return WHITE;
+  } else {
+    return BLACK;
+  }
+}
+
 std::pair<bool, std::vector<std::pair<int, int>>>
 couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
   std::vector<std::pair<int, int>> taken_stones =
@@ -189,12 +185,8 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
   if (board[row][col] != EMPTY)
     return std::make_pair(false, taken_stones);
   board[row][col] = state;
-  State alternativeState;
-  if (state == BLACK) {
-    alternativeState = WHITE;
-  } else {
-    alternativeState = BLACK;
-  }
+  State alternativeState = changeState(state);
+
   std::vector<std::pair<int, int>> stones_reached_by_mine =
       findReached(board, row, col).second;
   // tu sprawdzamy czy cos zabieramy u przeciwnika
@@ -217,14 +209,9 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       }
       if (j == reached_by_opponent.size()) {
         for (int ind = 0; ind < potential_captured.size(); ++ind) {
-          // board[potential_captured[ind].first][potential_captured[ind].second]
-          // = EMPTY; // NEW
           taken_stones.push_back(std::make_pair(
               potential_captured[ind].first, potential_captured[ind].second));
         }
-        /* taken_stones.push_back(std::make_pair(
-             stones_reached_by_mine[i].first,
-           stones_reached_by_mine[i].second));*/
       }
     }
   }
@@ -244,20 +231,16 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       return std::make_pair(false, taken_stones);
     }
   }
-  // end
-  // sprawdzamy czy nie ko
   if (state == BLACK) {
     isKo(previousPositionForBlack, board);
   } else {
     isKo(previousPositionForWhite, board);
   }
-
   board[row][col] = EMPTY;
   return std::make_pair(true, taken_stones);
 }
 
 void createChildren(Node *n, int i, int j, State state) {
-  // Node childNode;
   auto taken_stones = couldPlaceStone(n->board, i, j, state).second;
   Node *childNode = new Node();
   copyBoard(n->board, childNode->board);
@@ -335,13 +318,7 @@ State randomPlays(Node *n, State state) {
   copyBoard(n->board, board_for_random_play);
   int random_row, random_col;
   std::pair<bool, std::vector<std::pair<int, int>>> result;
-  if (state == BLACK) {
-    state = WHITE;
-    copyBoard(n->board, previousPositionForWhite);
-  } else {
-    state = BLACK;
-    copyBoard(n->board, previousPositionForBlack);
-  }
+  state = changeState(state);
   int num_of_tries = 0;
   int index = 0;
   int lost_white_stones = n->taken_white_stones;
@@ -360,22 +337,15 @@ State randomPlays(Node *n, State state) {
     board_for_random_play[random_row][random_col] = state;
     if (state == BLACK) {
       lost_white_stones += taken_stones.size();
-      copyBoard(board_for_random_play, previousPositionForWhite);
     } else {
       lost_black_stones += taken_stones.size();
-      copyBoard(board_for_random_play, previousPositionForBlack);
     }
     // change state from black to white and vice versa
-    if (state == BLACK) {
-      state = WHITE;
-    } else {
-      state = BLACK;
-    }
+    state = changeState(state);
     for (int i = 0; i < taken_stones.size(); ++i) { // taking oppoents' stones
       board_for_random_play[taken_stones[i].first][taken_stones[i].second] =
           EMPTY;
     }
-    // !!! create condition for in_process (do poki są EMPTY ??)
     num_of_tries = 0;
   }
   // count scores and territories
@@ -392,11 +362,6 @@ State randomPlays(Node *n, State state) {
 }
 
 void expand(Node *n, State state) {
-  if (state == BLACK) {
-    copyBoard(n->board, previousPositionForBlack);
-  } else {
-    copyBoard(n->board, previousPositionForWhite);
-  }
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (couldPlaceStone(n->board, i, j, state).first) {
@@ -411,11 +376,6 @@ void expand(Node *n, State state) {
 void simulate(Node *n, State state) {
   State winner;
   for (int i = 0; i < n->children.size(); ++i) {
-    if (state == BLACK) {
-      copyBoard(n->board, previousPositionForBlack);
-    } else {
-      copyBoard(n->board, previousPositionForWhite);
-    }
     winner = randomPlays(n->children[i], state);
     n->number_of_simulations = n->number_of_simulations + 1;
     n->children[i]->number_of_simulations =
@@ -429,8 +389,6 @@ void simulate(Node *n, State state) {
     }
   }
 }
-
-
 
 Node *findMaxUctChild(Node *parent, State state) {
   double maxUCT = -std::numeric_limits<double>::infinity();
@@ -447,7 +405,6 @@ Node *findMaxUctChild(Node *parent, State state) {
         maxUCT = uctValue;
         maxUCTChild = child;
       }
-    
   }
   return maxUCTChild;
 }
@@ -461,17 +418,6 @@ void backpropagate(Node *n) {
   }
 }
 
-void testing() {
-  createNeighbours();
-  State testing_board[SIZE][SIZE] = {{BLACK, WHITE, WHITE, EMPTY, EMPTY},
-                                     {EMPTY, BLACK, BLACK, WHITE, EMPTY},
-                                     {EMPTY, EMPTY, EMPTY, EMPTY, EMPTY},
-                                     {EMPTY, EMPTY, EMPTY, EMPTY, EMPTY},
-                                     {BLACK, EMPTY, EMPTY, EMPTY, WHITE}};
-  auto res = couldPlaceStone(testing_board, 0, 3, BLACK);
-  int i = 0;
-}
-
 Node *makeHumanMove(Node *parent, State state, int i, int j) {
   for (Node *child : parent->children) {
     if (child->board[i][j] == state) {
@@ -480,8 +426,83 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
   }
 }
 
+void showResults(Node* root_node){
+  auto main_results = computeTerritories(root_node->board);
+  std::cout << "\nBlack territory: " << main_results.first << '\n';
+  std::cout << "White territory: " << main_results.second << '\n';
+  int lost_black_stones = root_node->taken_black_stones;
+  int lost_white_stones = root_node->taken_white_stones;
+  std::cout << "Lost black stones: " << lost_black_stones << '\n';
+  std::cout << "Lost white stones: " << lost_white_stones << '\n';
+  if ((main_results.first + lost_white_stones) >
+      (main_results.second + lost_black_stones)) {
+    std::cout << "BLACK won\n";
+  } else if ((main_results.first + lost_white_stones) <
+             (main_results.second + lost_black_stones)) {
+    std::cout << "WHITE won\n";
+  } else {
+    std::cout << "DRAW\n";
+  }
+}
+
+void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanState){
+  Node* actual_node;
+  State whoose_move = actual_state;
+  int max_depth_ind = 0;
+  int mov_ind = 0;
+  int row_by_user, col_by_user;
+  std::cout << "\nStart board: \n";
+  printBoard(root_node);
+  while (mov_ind < MOVEMENTS) {
+    max_depth_ind = 0;
+    while (max_depth_ind < MAX_DEPTH) { 
+      actual_node = root_node;
+      int local_depth = 0;
+      while (actual_node->children.size() != 0) {
+        if (local_depth % 2 == 0) {
+          whoose_move = actual_state;
+        } else {
+          whoose_move = changeState(actual_state);
+        }
+        actual_node = findMaxUctChild(actual_node, whoose_move); // select
+        ++local_depth;
+      }
+      if (local_depth % 2 == 0) {
+        whoose_move = actual_state;
+      } else {
+        whoose_move = changeState(actual_state);
+      }
+      expand(actual_node, whoose_move);
+      simulate(actual_node, whoose_move);
+      backpropagate(actual_node);
+      ++max_depth_ind;
+    }
+
+    if (isHumanVsComp && actual_state == humanState) {
+      std::cout << "Your move:\n";
+      std::cin >> row_by_user >> col_by_user;
+      root_node =
+          makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
+    } else {
+      root_node = findMaxUctChild(root_node, actual_state); // na pewno bo tu robimy ruch
+    }
+
+    std::cout << "\nNr: " << mov_ind << '\n';
+    printBoard(root_node);
+    std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
+    std::cout << "Lost white stones: " << root_node->taken_white_stones << '\n';
+    if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
+      actual_state = WHITE;
+      copyBoard(root_node->board, previousPositionForWhite);
+    } else {
+      actual_state = BLACK;
+      copyBoard(root_node->board, previousPositionForBlack);
+    }
+    ++mov_ind;
+  }
+}
+
 int main(int argc, char **argv) {
-  // testing();
   int tmp;
   State actual_state = BLACK;
   std::srand(std::time(0));
@@ -495,7 +516,6 @@ int main(int argc, char **argv) {
   }
   std::cout << "Do you want to load board? 1 - yes, 2 - no\n";
   std::cin >> tmp;
-  
   
   if (tmp == 1) {
     std::cin.ignore();
@@ -525,24 +545,13 @@ int main(int argc, char **argv) {
   copyBoard(actual_board, MCTS_head.board);
   copyBoard(actual_board, previousPositionForBlack);
   copyBoard(actual_board, previousPositionForWhite);
-  Node *actual_node;
+  
   Node *root_node;
   root_node = &MCTS_head;   // aktualny stan pozycji
-  actual_node = &MCTS_head; // will be changed later (selection)
-
-  int num_of_test_movements = 0;
-  int num_of_tree_searches = 0;
-  int lost_white_stones = 0;
-  int lost_black_stones = 0;
-  State whoose_move = actual_state;
-  int max_depth_ind = 0;
-  int mov_ind = 0;
 
   bool isHumanVsComp = false;
   State humanState = BLACK;
-  int row_by_user, col_by_user;
-  std::cout
-      << "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
+  std::cout<< "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
   std::cin >> tmp;
   if (tmp == 2) {
     isHumanVsComp = true;
@@ -555,79 +564,8 @@ int main(int argc, char **argv) {
     }
   }
 
+  play(root_node, actual_state, isHumanVsComp, humanState);
+  showResults(root_node);
   
-    std::cout << "\nStart board: \n";
-  printBoard(root_node);
-  while (mov_ind < MOVEMENTS) {
-    max_depth_ind = 0;
-    while (max_depth_ind < MAX_DEPTH) { 
-      actual_node = root_node;
-      int local_depth = 0;
-      while (actual_node->children.size() != 0) {
-        if (local_depth % 2 == 0) {
-          whoose_move = actual_state;
-        } else {
-          if (actual_state ==
-              BLACK) {  // przekazujemy prawo ruchu innemy graczowi
-            whoose_move = WHITE;
-          } else {
-            whoose_move = BLACK;
-          }
-        }
-        actual_node = findMaxUctChild(actual_node, whoose_move); // select
-        ++local_depth;
-      }
-      if (local_depth % 2 == 0) {
-        whoose_move = actual_state;
-      } else {
-        if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
-          whoose_move = WHITE;
-        } else {
-          whoose_move = BLACK;
-        }
-      }
-      expand(actual_node, whoose_move);
-      simulate(actual_node, whoose_move);
-      backpropagate(actual_node);
-      ++max_depth_ind;
-    }
-
-    if (isHumanVsComp && actual_state == humanState) {
-      std::cout << "Your move:\n";
-      std::cin >> row_by_user >> col_by_user;
-      root_node =
-          makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
-    } else {
-      root_node = findMaxUctChild(root_node, actual_state); // na pewno bo tu robimy ruch
-    }
-
-    std::cout << "\nNr: " << mov_ind << '\n';
-    printBoard(root_node);
-    std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
-    std::cout << "Lost white stones: " << root_node->taken_white_stones << '\n';
-    if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
-      actual_state = WHITE;
-    } else {
-      actual_state = BLACK;
-    }
-    ++mov_ind;
-  }
-
-  auto main_results = computeTerritories(root_node->board);
-  std::cout << "\nBlack territory: " << main_results.first << '\n';
-  std::cout << "White territory: " << main_results.second << '\n';
-  lost_black_stones = root_node->taken_black_stones;
-  lost_white_stones = root_node->taken_white_stones;
-  std::cout << "Lost black stones: " << lost_black_stones << '\n';
-  std::cout << "Lost white stones: " << lost_white_stones << '\n';
-  if ((main_results.first + lost_white_stones) >
-      (main_results.second + lost_black_stones)) {
-    std::cout << "BLACK won\n";
-  } else if ((main_results.first + lost_white_stones) <
-             (main_results.second + lost_black_stones)) {
-    std::cout << "WHITE won\n";
-  } else {
-    std::cout << "DRAW\n";
-  }
   return 0;
 }
