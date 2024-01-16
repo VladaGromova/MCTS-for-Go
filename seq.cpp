@@ -94,7 +94,20 @@ void copyBoard(State source[SIZE][SIZE], State destination[SIZE][SIZE]) {
 }
 
 void printBoard(Node *n) {
+  std::cout<<'\t';
+  std::cout<<'\t';
+  for (int i=0; i<SIZE; ++i) {
+    std::cout<<i<<'\t';
+  }
+  std::cout<<'\n';
+  std::cout<<'\t';
+  std::cout<<'\t';
+  for (int i=0; i<SIZE; ++i) {
+    std::cout<<"_\t";
+  }
+  std::cout<<'\n';
   for (int i = 0; i < SIZE; ++i) {
+    std::cout<<i<<'\t'<<'|'<<'\t';
     for (int j = 0; j < SIZE; ++j) {
       if (n->board[i][j] == EMPTY) {
         std::cout << ".\t";
@@ -502,23 +515,17 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
   }
 }
 
-int main(int argc, char **argv) {
-  int tmp;
-  State actual_state = BLACK;
-  std::srand(std::time(0));
-  createNeighbours();
-  bool is_black = true;
-  State actual_board[SIZE][SIZE];
-  for (int i = 0; i < SIZE; ++i) {
+void emptyBoard(State actual_board[SIZE][SIZE]){
+   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       actual_board[i][j] = EMPTY;
     }
   }
-  std::cout << "Do you want to load board? 1 - yes, 2 - no\n";
-  std::cin >> tmp;
-  
-  if (tmp == 1) {
-    std::cin.ignore();
+}
+
+void loadBoard(State& actual_state, State actual_board[SIZE][SIZE]){
+  std::cout<<"Load your board\n";
+  std::cin.ignore();
     std::string input;
     int num_of_x = 0;
     int num_of_o = 0;
@@ -539,18 +546,22 @@ int main(int argc, char **argv) {
     if(num_of_x != num_of_o){
       actual_state = WHITE;
     }
-  }
+}
 
-  Node MCTS_head;
-  copyBoard(actual_board, MCTS_head.board);
+void preProcessing(Node *root_node, State& actual_state, State actual_board[SIZE][SIZE], bool& is_black, bool& isHumanVsComp, State& humanState){
+  std::srand(std::time(0));
+  emptyBoard(actual_board);
+  createNeighbours();
+  int tmp;
+  std::cout << "Do you want to load board? 1 - yes, 2 - no\n";
+  std::cin >> tmp;
+  if (tmp == 1) {
+    loadBoard(actual_state, actual_board);
+  }
+  copyBoard(actual_board, root_node->board);
   copyBoard(actual_board, previousPositionForBlack);
   copyBoard(actual_board, previousPositionForWhite);
-  
-  Node *root_node;
-  root_node = &MCTS_head;   // aktualny stan pozycji
 
-  bool isHumanVsComp = false;
-  State humanState = BLACK;
   std::cout<< "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
   std::cin >> tmp;
   if (tmp == 2) {
@@ -563,7 +574,16 @@ int main(int argc, char **argv) {
       humanState = WHITE;
     }
   }
+}
 
+int main(int argc, char **argv) {
+  State actual_state = BLACK;
+  bool is_black = true;
+  State actual_board[SIZE][SIZE];
+  Node *root_node = new Node;
+  bool isHumanVsComp = false;
+  State humanState = BLACK;
+  preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp, humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node);
   
