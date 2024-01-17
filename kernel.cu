@@ -652,6 +652,7 @@ randomPlaysKernel(State *d_flattenedCubes,
 }
 
 void simulate(Node *n, State state) {
+  std::cout<<"I'm in simulate\n";
   int totalSize = n->children.size() * SIZE * SIZE;
   State *h_flattenedCubes = new State[totalSize];
   flattenCube(n, h_flattenedCubes);
@@ -659,6 +660,7 @@ void simulate(Node *n, State state) {
   cudaMalloc(&d_flattenedCubes, totalSize * sizeof(State));
   cudaMemcpy(d_flattenedCubes, h_flattenedCubes, totalSize * sizeof(State),
              cudaMemcpyHostToDevice);
+             std::cout<<"Fluttened cubes were copied\n";
   // State* d_state;
   // cudaMalloc((void**)&d_state, sizeof(State));
   // cudaMemcpy(d_state, state, sizeof(State), )
@@ -669,7 +671,7 @@ void simulate(Node *n, State state) {
   int *d_black_scores;
   cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(int));
   cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
-
+  std::cout<<"d_black scores allocated\n";
   // state_in_simulation = state;
   State *d_state;
   cudaMalloc((void **)&d_state, sizeof(State));
@@ -680,6 +682,7 @@ void simulate(Node *n, State state) {
   int *h_taken_black_stones = new int[n->children.size()];
   int *d_taken_black_stones;
   cudaMalloc((void **)&d_taken_black_stones, n->children.size() * sizeof(int));
+  std::cout<<"more allocations\n";
   for (int i = 0; i < n->children.size(); ++i) {
     h_taken_black_stones[i] = n->children[i]->taken_black_stones;
     h_taken_white_stones[i] =
