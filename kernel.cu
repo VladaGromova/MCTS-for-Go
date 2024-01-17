@@ -541,7 +541,6 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
       return false;
     }
   }
-  // is Ko - TO DO
   board[row][col] = EMPTY;
   return true;
 }
@@ -804,7 +803,7 @@ void simulate(Node *n, State state) {
 
 Node *findMaxUctChild(Node *parent, State state) {
   double maxUCT = -std::numeric_limits<double>::infinity();
-  Node *maxUCTChild = nullptr;
+  Node *maxUCTChild = parent->children[0];
   std::vector<Node *> topChildren = std::vector<Node *>();
   if (state == BLACK) {
     topChildren = parent->getMaxProfitForBlack();
@@ -836,6 +835,7 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
       return child;
     }
   }
+  std::cout<<"Helloo\n";
   return parent->children[0];
 }
 
