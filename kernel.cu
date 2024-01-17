@@ -547,16 +547,16 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
 
 __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
   bool managed[SIZE][SIZE];
-  printf("Board:\n");
+  //printf("Board:\n");
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       managed[i][j] = false;
-      printf("%d ", board[i][j]);
+      //printf("%d ", board[i][j]);
     }
-    printf("\n");
+    //printf("\n");
   }
   
-    printf("\n");
+    //printf("\n");
   int chain[SIZE * SIZE][2];
   int reached[SIZE * SIZE][2];
   State color;
