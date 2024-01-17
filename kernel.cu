@@ -575,7 +575,7 @@ randomPlaysKernel(State *d_flattenedCubes,
                   int *d_black_scores,       // out
                   int *d_taken_black_stones, // just info for point counting
                   int *d_taken_white_stones, State* state_in_simulation) {
-                    /*
+                    
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   // printf("Hello from kernel\n");
@@ -649,7 +649,7 @@ randomPlaysKernel(State *d_flattenedCubes,
     atomicAdd(&d_black_scores[blockIdx.x], 1);
   }
   // if(black win) atomicadd(d_black_scores[blockIdx.x], 1)
-  */
+  
 }
 
 void simulate(Node *n, State state) {
