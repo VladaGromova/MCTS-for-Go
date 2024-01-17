@@ -539,7 +539,7 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
           ++chain_size;
         }
         color = board[reached[0][0]][reached[0][1]];
-        int k = 0;
+        //int k = 0;
         int tmp=0;
         while(reached[tmp][0]!=-1){
           if(board[reached[tmp][0]][reached[tmp][1]]!=color){
@@ -576,10 +576,6 @@ randomPlaysKernel(State *d_flattenedCubes,
                   int *d_taken_black_stones, // just info for point counting
                   int *d_taken_white_stones, State state_in_simulation) {
   int taken_stones[SIZE * SIZE][2];
-  for (int i = 0; i < SIZE * SIZE; ++i) {
-    taken_stones[i][0] = -1;
-    taken_stones[i][1] = -1;
-  }
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   curandState cs;
   curand_init(clock64(), tid, 0, &cs);
@@ -604,6 +600,11 @@ randomPlaysKernel(State *d_flattenedCubes,
   bool could_place_stone;
 
   while (index < NUM_OF_MOVEMENTS_IN_SIMULATION) {
+    
+  for (int i = 0; i < SIZE * SIZE; ++i) {
+    taken_stones[i][0] = -1;
+    taken_stones[i][1] = -1;
+  }
     do {
       ++num_of_tries;
       random_row = curand(&cs) % SIZE;
@@ -615,11 +616,16 @@ randomPlaysKernel(State *d_flattenedCubes,
     if (num_of_tries == 20) {
       break;
     }
+    int num_of_taken_stones = 0;
+    while (taken_stones[num_of_taken_stones][0]!=-1) {
+      ++num_of_taken_stones;
+    }
+
     board_for_random_play[random_row][random_col] = state;
     if (state == BLACK) {
-      lost_white_stones += taken_stones.size();
+      lost_white_stones += num_of_taken_stones;
     } else {
-      lost_black_stones += taken_stones.size();
+      lost_black_stones += num_of_taken_stones;
     }
     if (state == BLACK) {
       state = WHITE;
@@ -638,7 +644,7 @@ randomPlaysKernel(State *d_flattenedCubes,
   int results[2];
   d_computeTerritories(board_for_random_play, results);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
-    atomicAdd(d_black_scores[blockIdx.x], 1);
+    atomicAdd(&d_black_scores[blockIdx.x], 1);
   }
   // if(black win) atomicadd(d_black_scores[blockIdx.x], 1)
 }
@@ -648,7 +654,7 @@ void simulate(Node *n, State state) {
   State *h_flattenedCubes = new State[totalSize];
   flattenCube(n, h_flattenedCubes);
   State *d_flattenedCubes;
-  cudaMalloc((void **)&d_flattenedCubes, totalSize * sizeof(State));
+  cudaMalloc(&d_flattenedCubes, totalSize * sizeof(State));
   cudaMemcpy(d_flattenedCubes, h_flattenedCubes, totalSize * sizeof(State),
              cudaMemcpyHostToDevice);
   // State* d_state;
