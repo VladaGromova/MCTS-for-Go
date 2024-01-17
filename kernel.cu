@@ -962,6 +962,6 @@ int main(int argc, char **argv) {
   play(root_node, actual_state, isHumanVsComp, humanState);
   std::cout<<"Now we will see results\n";
   showResults(root_node);
-  delete[] root_node;
+  //delete[] root_node;
   return 0;
 }
