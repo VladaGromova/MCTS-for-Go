@@ -576,11 +576,11 @@ randomPlaysKernel(State *d_flattenedCubes,
                   int *d_black_scores,       // out
                   int *d_taken_black_stones, // just info for point counting
                   int *d_taken_white_stones, State state_in_simulation) {
+  int taken_stones[SIZE * SIZE][2];
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
 #if __CUDA_ARCH__ >= 200
   printf("%d \n", tid);
 #endif
-  int taken_stones[SIZE * SIZE][2];
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
   curandState cs;
   curand_init(clock64(), tid, 0, &cs);
   State board_for_random_play[SIZE][SIZE];
