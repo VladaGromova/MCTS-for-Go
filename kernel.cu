@@ -536,6 +536,8 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
         d_findReached(board, i, j, chain, reached);
         int chain_size = 0;
         while (chain[chain_size][0] != -1) {
+          printf("%d \t", chain[chain_size][0]);
+          printf("%d \n", chain[chain_size][1]);
           managed[chain[chain_size][0]][chain[chain_size][1]] = true;//cudamemcheck
           ++chain_size;
         }
@@ -644,7 +646,7 @@ randomPlaysKernel(State *d_flattenedCubes,
   }
 
   int results[2] = {0,0};
-  //d_computeTerritories(board_for_random_play, results);
+  d_computeTerritories(board_for_random_play, results);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     atomicAdd(&d_black_scores[blockIdx.x], 1);
   }
