@@ -129,6 +129,36 @@ void printBoard(Node *n) {
   std::cout << '\n';
 }
 
+void printPrevPosBoard(State board[SIZE][SIZE]) {
+  std::cout << '\t';
+  std::cout << '\t';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << i << '\t';
+  }
+  std::cout << '\n';
+  std::cout << '\t';
+  std::cout << '\t';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << "_\t";
+  }
+  std::cout << '\n';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << i << '\t' << '|' << '\t';
+    for (int j = 0; j < SIZE; ++j) {
+      if (board[i][j] == EMPTY) {
+        std::cout << ".\t";
+      } else if (board[i][j] == BLACK) {
+        std::cout << "X\t";
+      } else {
+        std::cout << "O\t";
+      }
+    }
+    std::cout << '\n';
+  }
+  std::cout << '\n';
+}
+
+
 bool isKo(State prev[SIZE][SIZE], State actual[SIZE][SIZE]) {
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
@@ -812,6 +842,10 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
 void showResults(Node *root_node) {
   std::cout<<"Hello from show results\n";
   printBoard(root_node);
+  std::cout<<"Previous position for black:\n";
+  printPrevPosBoard(previousPositionForBlack);
+  std::cout<<"Previous position for white:\n";
+  printPrevPosBoard(previousPositionForWhite);
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
