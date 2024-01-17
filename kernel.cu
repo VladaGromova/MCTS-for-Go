@@ -15,7 +15,7 @@
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
 #define MAX_DEPTH 5 // tyle razy wykonamy te 3 etapy
-#define MOVEMENTS 60
+#define MOVEMENTS 20
 #define MAX_NUMBER_OF_THREADS 256
 
 enum State { EMPTY, BLACK, WHITE };
@@ -959,7 +959,7 @@ int main(int argc, char **argv) {
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
-  //showResults(root_node);
+  showResults(root_node);
   delete[] root_node;
   return 0;
 }
