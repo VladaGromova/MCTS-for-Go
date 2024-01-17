@@ -663,6 +663,7 @@ void simulate(Node *n, State state) {
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_flattenedCubes) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
+              exit(1);
   } else {
     std::cout << "[OK] cudaMalloc (d_flattenedCubes) \n";
   }
@@ -774,6 +775,7 @@ void simulate(Node *n, State state) {
   cudaFree(d_black_scores);
   cudaFree(d_taken_black_stones);
   cudaFree(d_taken_white_stones);
+  cudaFree(d_state);
 }
 
 Node *findMaxUctChild(Node *parent, State state) {
