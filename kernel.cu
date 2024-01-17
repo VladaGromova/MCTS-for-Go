@@ -680,17 +680,17 @@ randomPlaysKernel(State *d_flattenedCubes,
   int results[2] = {0, 0};
   d_computeTerritories(board_for_random_play, results);
   __syncthreads();
-  printf("Thread %d: B land = %d, W land = %d \n", tid, results[0], results[1]);
+ // printf("Thread %d: B land = %d, W land = %d \n", tid, results[0], results[1]);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 1.0;
     printf("Thread %d: here black won\n", tid);
   } else if ((results[0] + lost_white_stones) ==
              (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 0.5;
-    printf("Thread %d: here is draw\n", tid);
+    //printf("Thread %d: here is draw\n", tid);
   } else {
     
-    printf("Thread %d: here white won\n", tid);
+    //printf("Thread %d: here white won\n", tid);
   }
   __syncthreads();
   if (threadIdx.x == 0) {
