@@ -16,7 +16,7 @@
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
 #define MAX_DEPTH 15 // tyle razy wykonamy te 3 etapy
 #define MOVEMENTS 60
-#define MAX_NUMBER_OF_THREADS 512
+#define MAX_NUMBER_OF_THREADS 64
 
 enum State { EMPTY, BLACK, WHITE };
 
@@ -652,6 +652,8 @@ randomPlaysKernel(State *d_flattenedCubes,
   
 }
 
+int num_memcheck=0;
+
 void simulate(Node *n, State state) {
   cudaError_t cudaStatus;
   std::cout << "I'm in simulate\n";
@@ -755,6 +757,8 @@ void simulate(Node *n, State state) {
     std::cout << "[OK] cudaMemcpy (d_taken_black_stones) \n";
   }
   std::cout << "In simulate before kernel.\n";
+  std::cout<<"Nr: "<<num_memcheck<<'\n';
+  ++num_memcheck;
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, d_state);
@@ -770,7 +774,10 @@ void simulate(Node *n, State state) {
     n->children[i]->black_score =
         n->children[i]->black_score + h_black_scores[i];
   }
-
+  delete [] h_flattenedCubes;
+  delete [] h_black_scores;
+  delete [] h_taken_black_stones;
+  delete [] h_taken_white_stones;
   cudaFree(d_flattenedCubes);
   cudaFree(d_black_scores);
   cudaFree(d_taken_black_stones);
@@ -968,6 +975,6 @@ int main(int argc, char **argv) {
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node);
-
+  delete [] root_node;
   return 0;
 }
