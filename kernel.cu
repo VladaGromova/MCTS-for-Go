@@ -15,7 +15,7 @@
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
 #define MAX_DEPTH 5 // tyle razy wykonamy te 3 etapy
-#define MOVEMENTS 20
+#define MOVEMENTS 6
 #define MAX_NUMBER_OF_THREADS 256
 
 enum State { EMPTY, BLACK, WHITE };
@@ -808,7 +808,8 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
 }
 
 void showResults(Node *root_node) {
-  auto main_results = computeTerritories(root_node->board);
+  std::cout<<"Hello from show results\n";
+  //auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
   int lost_black_stones = root_node->taken_black_stones;
@@ -959,6 +960,7 @@ int main(int argc, char **argv) {
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
+  std::cout<<"Now we will see results\n";
   showResults(root_node);
   delete[] root_node;
   return 0;
