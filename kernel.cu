@@ -158,7 +158,6 @@ void printPrevPosBoard(State board[SIZE][SIZE]) {
   std::cout << '\n';
 }
 
-
 bool isKo(State prev[SIZE][SIZE], State actual[SIZE][SIZE]) {
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
@@ -323,12 +322,12 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
   State color;
   int white_territory = 0;
   int black_territory = 0;
-  
+
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
         auto res = findReached(board, i, j);
-        std::cout<<"i = "<<i<<" j = "<<j<<'\n';
+        std::cout << "i = " << i << " j = " << j << '\n';
         chain = res.first;
         reached = res.second;
         for (auto p : chain) {
@@ -753,7 +752,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
-  } 
+  }
   for (int i = 0; i < n->children.size(); ++i) {
     h_taken_black_stones[i] = n->children[i]->taken_black_stones;
     h_taken_white_stones[i] =
@@ -766,7 +765,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMemcpy (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
-  } 
+  }
   cudaStatus =
       cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
                  n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -775,7 +774,7 @@ void simulate(Node *n, State state) {
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
-  
+
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, d_state);
@@ -835,21 +834,21 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
       return child;
     }
   }
-  std::cout<<"Helloo\n";
+  std::cout << "Helloo\n";
   return parent->children[0];
 }
 
 void showResults(Node *root_node, State actual_state) {
-  std::cout<<"Hello from show results\n";
+  std::cout << "Hello from show results\n";
   printBoard(root_node);
-  std::cout<<"Previous position for black:\n";
+  std::cout << "Previous position for black:\n";
   printPrevPosBoard(previousPositionForBlack);
-  std::cout<<"Previous position for white:\n";
+  std::cout << "Previous position for white:\n";
   printPrevPosBoard(previousPositionForWhite);
-  if(actual_state == BLACK){
+  if (actual_state == BLACK) {
     copyBoard(previousPositionForBlack, root_node->board);
   } else {
-  copyBoard(previousPositionForWhite, root_node->board);
+    copyBoard(previousPositionForWhite, root_node->board);
   }
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
@@ -909,6 +908,14 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
+      for (int i = 0; i < root_node->children->size(); ++i) {
+        std::cout << "Child nr " << i << ": numOdSimulations = "
+                  << root_node->children[i]->number_of_simulations
+                  << ", black score = " << root_node->children[i]->black_score
+                  << ", taken B = " << root_node->children[i]->taken_black_stones
+                  << ", taken W = " << root_node->children[i]->taken_white_stones
+                  << '\n';
+      }
       root_node = findMaxUctChild(root_node,
                                   actual_state); // na pewno bo tu robimy ruch
     }
@@ -1002,8 +1009,8 @@ int main(int argc, char **argv) {
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
-  std::cout<<"Now we will see results\n";
+  std::cout << "Now we will see results\n";
   showResults(root_node, actual_state);
-  //delete[] root_node;
+  // delete[] root_node;
   return 0;
 }
