@@ -590,7 +590,7 @@ randomPlaysKernel(State *d_flattenedCubes,
   }
   __syncthreads(); // Synchronize threads to ensure all data is copied
   State state = BLACK;
-  if (state_in_simulation == BLACK) {
+  if (*state_in_simulation == BLACK) {
     state = WHITE;
   }
 
