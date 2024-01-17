@@ -460,8 +460,8 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
   }
 
   d_findReached(board, row, col, chain, reached);
-  int i = 0;
-  while (reached[i][0] != -1) {
+  int r_ind = 0;
+  while (reached[r_ind][0] != -1) {
     int potential_captured[SIZE * SIZE][2];
     int reached_by_opponent[SIZE * SIZE][2];
     for (int i = 0; i < SIZE * SIZE; ++i) {
@@ -471,8 +471,8 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
       reached_by_opponent[i][1] = -1;
     }
 
-    if (board[reached[i][0]][reached[i][1]] != EMPTY) {
-      d_findReached(board, reached[i][0], reached[i][1], potential_captured,
+    if (board[reached[r_ind][0]][reached[r_ind][1]] != EMPTY) {
+      d_findReached(board, reached[r_ind][0], reached[r_ind][1], potential_captured,
                     reached_by_opponent);
       int j = 0;
       while (reached_by_opponent[j][0] != -1) {
@@ -484,7 +484,7 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
       }
       if (reached_by_opponent[j][0] == -1) {
         int ind = 0;
-        while (potential_captured[ind][i] != -1) {
+        while (potential_captured[ind][0] != -1) {
           taken_stones[taken_stones_size][0] = potential_captured[ind][0];
           taken_stones[taken_stones_size][1] = potential_captured[ind][1];
           ++taken_stones_size;
