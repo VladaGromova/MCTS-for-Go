@@ -942,15 +942,15 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
-      for (int i = 0; i < root_node->children.size(); ++i) {
-        std::cout << "Child nr " << i << ": numOdSimulations = "
-                  << root_node->children[i]->number_of_simulations
-                  << ", black score = " << root_node->children[i]->black_score
-                  << ", taken B = "
-                  << root_node->children[i]->taken_black_stones
-                  << ", taken W = "
-                  << root_node->children[i]->taken_white_stones << '\n';
-      }
+      // for (int i = 0; i < root_node->children.size(); ++i) {
+      //   std::cout << "Child nr " << i << ": numOdSimulations = "
+      //             << root_node->children[i]->number_of_simulations
+      //             << ", black score = " << root_node->children[i]->black_score
+      //             << ", taken B = "
+      //             << root_node->children[i]->taken_black_stones
+      //             << ", taken W = "
+      //             << root_node->children[i]->taken_white_stones << '\n';
+      // }
       root_node = findMaxUctChild(root_node,
                                   actual_state); // na pewno bo tu robimy ruch
     }
