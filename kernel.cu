@@ -492,7 +492,7 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
         }
       }
     }
-    ++i;
+    ++r_ind;
   }
 
   if (taken_stones[0][0] == -1) {
