@@ -19,9 +19,9 @@
 
 enum State { EMPTY, BLACK, WHITE };
 
-__device__ __managed__ State state_in_simulation;
+//__device__ __managed__ State state_in_simulation;
 
-std::vector<std::pair<int, int>> NEIGHBOURS[SIZE][SIZE];
+std::vector<std::pair<int, int> > NEIGHBOURS[SIZE][SIZE];
 State previousPositionForBlack[SIZE][SIZE];
 State previousPositionForWhite[SIZE][SIZE];
 
@@ -572,17 +572,17 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
 
 __global__ void
 randomPlaysKernel(State *d_flattenedCubes,
-                  double *d_black_scores,    // out
+                  int *d_black_scores,    // out
                   int *d_taken_black_stones, // just info for point counting
-                  int *d_taken_white_stones) {
+                  int *d_taken_white_stones, State state_in_simulation) {
   int taken_stones[SIZE * SIZE][2];
   for (int i = 0; i < SIZE * SIZE; ++i) {
     taken_stones[i][0] = -1;
     taken_stones[i][1] = -1;
   }
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  curandState state;
-  curand_init(clock64(), tid, 0, &state);
+  curandState cs;
+  curand_init(clock64(), tid, 0, &cs);
   State board_for_random_play[SIZE][SIZE];
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
@@ -606,8 +606,8 @@ randomPlaysKernel(State *d_flattenedCubes,
   while (index < NUM_OF_MOVEMENTS_IN_SIMULATION) {
     do {
       ++num_of_tries;
-      random_row = curand(&state) % SIZE;
-      random_col = curand(&state) % SIZE;
+      random_row = curand(&cs) % SIZE;
+      random_col = curand(&cs) % SIZE;
 
       could_place_stone = d_couldPlaceStone(board_for_random_play, random_row,
                                             random_col, state, taken_stones);
@@ -622,7 +622,7 @@ randomPlaysKernel(State *d_flattenedCubes,
       lost_black_stones += taken_stones.size();
     }
     if (state == BLACK) {
-      state = WHITE
+      state = WHITE;
     } else {
       state = BLACK;
     }
@@ -644,7 +644,7 @@ randomPlaysKernel(State *d_flattenedCubes,
 }
 
 void simulate(Node *n, State state) {
-  int total_size = n->children.size() * SIZE * SIZE;
+  int totalSize = n->children.size() * SIZE * SIZE;
   State *h_flattenedCubes = new State[totalSize];
   flattenCube(n, h_flattenedCubes);
   State *d_flattenedCubes;
@@ -654,16 +654,18 @@ void simulate(Node *n, State state) {
   // State* d_state;
   // cudaMalloc((void**)&d_state, sizeof(State));
   // cudaMemcpy(d_state, state, sizeof(State), )
-  double *h_black_scores =
-      new double[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
+  int *h_black_scores =
+      new int[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
                                       // kazde zapisze liczba wygranych dla
                                       // czarnych
-  double *d_black_scores;
-  cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(double));
-  cudaMemset(d_black_scores, 0, n->children.size() * sizeof(double));
+  int *d_black_scores;
+  cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(int));
+  cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
 
-  state_in_simulation = state;
-
+  //state_in_simulation = state;
+  State* d_state;
+  cudaMalloc((void **)&d_state, sizeof(State));
+  cudaMemcpy(d_state, state, sizeof(state));
   int *h_taken_white_stones = new int[n->children.size()];
   int *d_taken_white_stones;
   cudaMalloc((void **)&d_taken_white_stones, n->children.size() * sizeof(int));
@@ -671,8 +673,8 @@ void simulate(Node *n, State state) {
   int *d_taken_black_stones;
   cudaMalloc((void **)&d_taken_black_stones, n->children.size() * sizeof(int));
   for (int i = 0; i < n->children.size(); ++i) {
-    h_taken_black_stones = n->children[i]->taken_black_stones;
-    h_taken_white_stones =
+    h_taken_black_stones[i] = n->children[i]->taken_black_stones;
+    h_taken_white_stones[i] =
         n->children[i]->taken_white_stones; // juz zdobyte kamienie
   }
   cudaMemcpy(d_taken_white_stones, h_taken_white_stones,
@@ -685,7 +687,7 @@ void simulate(Node *n, State state) {
       d_taken_white_stones);
 
   cudaMemcpy(h_black_scores, d_black_scores,
-             n->children.size() * sizeof(double), cudaMemcpyDeviceToHost);
+             n->children.size() * sizeof(int), cudaMemcpyDeviceToHost);
   // cudaDeviceSynchronize(); // moze
   for (int i = 0; i < n->children.size(); ++i) {
     n->number_of_simulations += MAX_NUMBER_OF_THREADS;
