@@ -605,10 +605,10 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
 
 __global__ void
 randomPlaysKernel(State *d_flattenedCubes,
-                  int *d_black_scores,       // out
+                  double *d_black_scores,    // out
                   int *d_taken_black_stones, // just info for point counting
                   int *d_taken_white_stones, State *state_in_simulation) {
-
+  __shared__ double localCounts[MAX_NUMBER_OF_THREADS];
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   // printf("Hello from kernel\n");
@@ -679,7 +679,16 @@ randomPlaysKernel(State *d_flattenedCubes,
   int results[2] = {0, 0};
   d_computeTerritories(board_for_random_play, results);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
-    atomicAdd(&d_black_scores[blockIdx.x], 1);
+    localCounts[threadIdx.x] = 1.0;
+  } else if ((results[0] + lost_white_stones) ==
+             (results[1] + lost_black_stones)) {
+    localCounts[threadIdx.x] = 0.5;
+  }
+  __syncthreads();
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < MAX_NUMBER_OF_THREADS; ++i) {
+      d_black_scores[blockIdx.x] += localCounts[i];
+    }
   }
   // if(black win) atomicadd(d_black_scores[blockIdx.x], 1)
 }
@@ -703,18 +712,19 @@ void simulate(Node *n, State state) {
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
-  int *h_black_scores =
-      new int[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
-                                   // kazde zapisze liczba wygranych dla
-                                   // czarnych
-  int *d_black_scores;
-  cudaStatus = cudaMalloc(&d_black_scores, n->children.size() * sizeof(int));
+  double *h_black_scores =
+      new double[n->children.size()]; // kazde dziecko ma NUM_OF_THREADS
+                                      // symulacji, tu kazde zapisze liczba
+                                      // wygranych dla czarnych
+  double *d_black_scores;
+  cudaStatus = cudaMalloc(&d_black_scores, n->children.size() * sizeof(double));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
-  cudaStatus = cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
+  cudaStatus =
+      cudaMemset(d_black_scores, 0, n->children.size() * sizeof(double));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemset (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -780,8 +790,8 @@ void simulate(Node *n, State state) {
       d_taken_white_stones, d_state);
   cudaDeviceSynchronize();
 
-  cudaMemcpy(h_black_scores, d_black_scores, n->children.size() * sizeof(int),
-             cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_black_scores, d_black_scores,
+             n->children.size() * sizeof(double), cudaMemcpyDeviceToHost);
   for (int i = 0; i < n->children.size(); ++i) {
     n->number_of_simulations += MAX_NUMBER_OF_THREADS;
     n->children[i]->number_of_simulations += MAX_NUMBER_OF_THREADS;
@@ -912,9 +922,10 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
         std::cout << "Child nr " << i << ": numOdSimulations = "
                   << root_node->children[i]->number_of_simulations
                   << ", black score = " << root_node->children[i]->black_score
-                  << ", taken B = " << root_node->children[i]->taken_black_stones
-                  << ", taken W = " << root_node->children[i]->taken_white_stones
-                  << '\n';
+                  << ", taken B = "
+                  << root_node->children[i]->taken_black_stones
+                  << ", taken W = "
+                  << root_node->children[i]->taken_white_stones << '\n';
       }
       root_node = findMaxUctChild(root_node,
                                   actual_state); // na pewno bo tu robimy ruch
