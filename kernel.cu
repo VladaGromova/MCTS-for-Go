@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
+#include<cstdio>
 #include <ctime>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -613,7 +614,7 @@ randomPlaysKernel(State *d_flattenedCubes,
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   // printf("Hello from kernel\n");
   curandState cs;
-  curand_init(clock64(), tid, 0, &cs);
+  curand_init(clock64() + tid, 0, 0, &cs);
   State board_for_random_play[SIZE][SIZE];
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
@@ -678,6 +679,8 @@ randomPlaysKernel(State *d_flattenedCubes,
 
   int results[2] = {0, 0};
   d_computeTerritories(board_for_random_play, results);
+  __syncthreads();
+  printf("Thread %d: Result = %d\n", tid, results[0]);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 1.0;
   } else if ((results[0] + lost_white_stones) ==
@@ -690,7 +693,6 @@ randomPlaysKernel(State *d_flattenedCubes,
       d_black_scores[blockIdx.x] += localCounts[i];
     }
   }
-  // if(black win) atomicadd(d_black_scores[blockIdx.x], 1)
 }
 
 void simulate(Node *n, State state) {
