@@ -662,7 +662,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_flattenedCubes) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
-    std::cout << "[OK] cudaMalloc (d_flattenedCubes) \n"
+    std::cout << "[OK] cudaMalloc (d_flattenedCubes) \n";
   }
   cudaMemcpy(d_flattenedCubes, h_flattenedCubes, totalSize * sizeof(State),
              cudaMemcpyHostToDevice);
@@ -679,7 +679,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
-    std::cout << "[OK] cudaMalloc (d_black_scores) \n"
+    std::cout << "[OK] cudaMalloc (d_black_scores) \n";
   }
   cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
   // state_in_simulation = state;
@@ -689,7 +689,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_state) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
-    std::cout << "[OK] cudaMalloc (d_state) \n"
+    std::cout << "[OK] cudaMalloc (d_state) \n";
   }
   cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
   int *h_taken_white_stones = new int[n->children.size()];
@@ -699,7 +699,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
-    std::cout << "[OK] cudaMalloc (d_taken_white_stones) \n"
+    std::cout << "[OK] cudaMalloc (d_taken_white_stones) \n";
   }
   int *h_taken_black_stones = new int[n->children.size()];
   int *d_taken_black_stones;
@@ -708,7 +708,7 @@ void simulate(Node *n, State state) {
     std::cout << "[ERROR] cudaMalloc (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
-    std::cout << "[OK] cudaMalloc (d_taken_black_stones) \n"
+    std::cout << "[OK] cudaMalloc (d_taken_black_stones) \n";
   }
   for (int i = 0; i < n->children.size(); ++i) {
     h_taken_black_stones[i] = n->children[i]->taken_black_stones;
