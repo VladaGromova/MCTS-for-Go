@@ -6,9 +6,11 @@
 #include <curand_kernel.h>
 #include <iostream>
 #include <math.h>
+#include <stdio.h>
 #include <string>
 #include <utility>
 #include <vector>
+
 
 #define C sqrt(2)
 #define SIZE 9
@@ -21,7 +23,7 @@ enum State { EMPTY, BLACK, WHITE };
 
 //__device__ __managed__ State state_in_simulation;
 
-std::vector<std::pair<int, int> > NEIGHBOURS[SIZE][SIZE];
+std::vector<std::pair<int, int>> NEIGHBOURS[SIZE][SIZE];
 State previousPositionForBlack[SIZE][SIZE];
 State previousPositionForWhite[SIZE][SIZE];
 
@@ -472,8 +474,8 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
     }
 
     if (board[reached[r_ind][0]][reached[r_ind][1]] != EMPTY) {
-      d_findReached(board, reached[r_ind][0], reached[r_ind][1], potential_captured,
-                    reached_by_opponent);
+      d_findReached(board, reached[r_ind][0], reached[r_ind][1],
+                    potential_captured, reached_by_opponent);
       int j = 0;
       while (reached_by_opponent[j][0] != -1) {
         if (board[reached_by_opponent[j][0]][reached_by_opponent[j][1]] !=
@@ -533,23 +535,23 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
       }
       if (board[i][j] == EMPTY && !managed[i][j]) {
         d_findReached(board, i, j, chain, reached);
-        int chain_size =0;
-        while(chain[chain_size][0]!=-1){
+        int chain_size = 0;
+        while (chain[chain_size][0] != -1) {
           managed[chain[chain_size][0]][chain[chain_size][1]] = true;
           ++chain_size;
         }
         color = board[reached[0][0]][reached[0][1]];
-        //int k = 0;
-        int tmp=0;
-        while(reached[tmp][0]!=-1){
-          if(board[reached[tmp][0]][reached[tmp][1]]!=color){
+        // int k = 0;
+        int tmp = 0;
+        while (reached[tmp][0] != -1) {
+          if (board[reached[tmp][0]][reached[tmp][1]] != color) {
             break;
           }
           ++tmp;
         }
-        if(reached[tmp][0]==-1){
-          if(color==BLACK){
-            results[0] +=chain_size;
+        if (reached[tmp][0] == -1) {
+          if (color == BLACK) {
+            results[0] += chain_size;
           } else {
             results[1] += chain_size;
           }
@@ -567,14 +569,16 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
       }
     }
   }
-  
 }
 
 __global__ void
 randomPlaysKernel(State *d_flattenedCubes,
-                  int *d_black_scores,    // out
+                  int *d_black_scores,       // out
                   int *d_taken_black_stones, // just info for point counting
                   int *d_taken_white_stones, State state_in_simulation) {
+#if __CUDA_ARCH__ >= 200
+  printf("%d \n", tid);
+#endif
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   curandState cs;
@@ -600,11 +604,11 @@ randomPlaysKernel(State *d_flattenedCubes,
   bool could_place_stone;
 
   while (index < NUM_OF_MOVEMENTS_IN_SIMULATION) {
-    
-  for (int i = 0; i < SIZE * SIZE; ++i) {
-    taken_stones[i][0] = -1;
-    taken_stones[i][1] = -1;
-  }
+
+    for (int i = 0; i < SIZE * SIZE; ++i) {
+      taken_stones[i][0] = -1;
+      taken_stones[i][1] = -1;
+    }
     do {
       ++num_of_tries;
       random_row = curand(&cs) % SIZE;
@@ -617,7 +621,7 @@ randomPlaysKernel(State *d_flattenedCubes,
       break;
     }
     int num_of_taken_stones = 0;
-    while (taken_stones[num_of_taken_stones][0]!=-1) {
+    while (taken_stones[num_of_taken_stones][0] != -1) {
       ++num_of_taken_stones;
     }
 
@@ -662,14 +666,14 @@ void simulate(Node *n, State state) {
   // cudaMemcpy(d_state, state, sizeof(State), )
   int *h_black_scores =
       new int[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
-                                      // kazde zapisze liczba wygranych dla
-                                      // czarnych
+                                   // kazde zapisze liczba wygranych dla
+                                   // czarnych
   int *d_black_scores;
   cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(int));
   cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
 
-  //state_in_simulation = state;
-  State* d_state;
+  // state_in_simulation = state;
+  State *d_state;
   cudaMalloc((void **)&d_state, sizeof(State));
   cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
   int *h_taken_white_stones = new int[n->children.size()];
@@ -687,14 +691,14 @@ void simulate(Node *n, State state) {
              n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
   cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
              n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
-             std::cout<<"In simulate before kernel.\n";
+  std::cout << "In simulate before kernel.\n";
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, *d_state);
-      std::cout<<"In simulate after kernel.\n";
+  std::cout << "In simulate after kernel.\n";
 
-  cudaMemcpy(h_black_scores, d_black_scores,
-             n->children.size() * sizeof(int), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_black_scores, d_black_scores, n->children.size() * sizeof(int),
+             cudaMemcpyDeviceToHost);
   // cudaDeviceSynchronize(); // moze
   for (int i = 0; i < n->children.size(); ++i) {
     n->number_of_simulations += MAX_NUMBER_OF_THREADS;
