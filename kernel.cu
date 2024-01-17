@@ -809,22 +809,22 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
 
 void showResults(Node *root_node) {
   std::cout<<"Hello from show results\n";
-  //auto main_results = computeTerritories(root_node->board);
-  // std::cout << "\nBlack territory: " << main_results.first << '\n';
-  // std::cout << "White territory: " << main_results.second << '\n';
-  // int lost_black_stones = root_node->taken_black_stones;
-  // int lost_white_stones = root_node->taken_white_stones;
-  // std::cout << "Lost black stones: " << lost_black_stones << '\n';
-  // std::cout << "Lost white stones: " << lost_white_stones << '\n';
-  // if ((main_results.first + lost_white_stones) >
-  //     (main_results.second + lost_black_stones)) {
-  //   std::cout << "BLACK won\n";
-  // } else if ((main_results.first + lost_white_stones) <
-  //            (main_results.second + lost_black_stones)) {
-  //   std::cout << "WHITE won\n";
-  // } else {
-  //   std::cout << "DRAW\n";
-  // }
+  auto main_results = computeTerritories(root_node->board);
+  std::cout << "\nBlack territory: " << main_results.first << '\n';
+  std::cout << "White territory: " << main_results.second << '\n';
+  int lost_black_stones = root_node->taken_black_stones;
+  int lost_white_stones = root_node->taken_white_stones;
+  std::cout << "Lost black stones: " << lost_black_stones << '\n';
+  std::cout << "Lost white stones: " << lost_white_stones << '\n';
+  if ((main_results.first + lost_white_stones) >
+      (main_results.second + lost_black_stones)) {
+    std::cout << "BLACK won\n";
+  } else if ((main_results.first + lost_white_stones) <
+             (main_results.second + lost_black_stones)) {
+    std::cout << "WHITE won\n";
+  } else {
+    std::cout << "DRAW\n";
+  }
 }
 
 void play(Node *root_node, State actual_state, bool isHumanVsComp,
