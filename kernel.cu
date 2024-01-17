@@ -553,10 +553,10 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
       managed[i][j] = false;
       printf("%d ", board[i][j]);
     }
-    printf('\n');
+    printf("\n");
   }
   
-    printf('\n');
+    printf("\n");
   int chain[SIZE * SIZE][2];
   int reached[SIZE * SIZE][2];
   State color;
