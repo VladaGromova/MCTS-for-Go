@@ -297,6 +297,7 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
         auto res = findReached(board, i, j);
+        std::cout<<"i = "<<i<<" j = "<<j<<'\n';
         chain = res.first;
         reached = res.second;
         for (auto p : chain) {
