@@ -664,37 +664,55 @@ void simulate(Node *n, State state) {
   } else {
     std::cout << "[OK] cudaMalloc (d_flattenedCubes) \n";
   }
-  cudaMemcpy(d_flattenedCubes, h_flattenedCubes, totalSize * sizeof(State),
-             cudaMemcpyHostToDevice);
-  // State* d_state;
-  // cudaMalloc((void**)&d_state, sizeof(State));
-  // cudaMemcpy(d_state, state, sizeof(State), )
+  cudaStatus = cudaMemcpy(d_flattenedCubes, h_flattenedCubes,
+                          totalSize * sizeof(State), cudaMemcpyHostToDevice);
+  if (cudaStatus != cudaSuccess) {
+    std::cout << "[ERROR] cudaMemcpy (d_flattenedCubes) failed: "
+              << cudaGetErrorString(cudaStatus) << std::endl;
+  } else {
+    std::cout << "[OK] cudaMemcpy (d_flattenedCubes) \n";
+  }
   int *h_black_scores =
       new int[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
                                    // kazde zapisze liczba wygranych dla
                                    // czarnych
   int *d_black_scores;
-  cudaStatus = cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(int));
+  cudaStatus =
+      cudaMalloc((void **)&d_black_scores, n->children.size() * sizeof(int));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
     std::cout << "[OK] cudaMalloc (d_black_scores) \n";
   }
-  cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
+  cudaStatus = cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
+  if (cudaStatus != cudaSuccess) {
+    std::cout << "[ERROR] cudaMemset (d_black_scores) failed: "
+              << cudaGetErrorString(cudaStatus) << std::endl;
+  } else {
+    std::cout << "[OK] cudaMemset (d_black_scores) \n";
+  }
   // state_in_simulation = state;
   State *d_state;
   cudaStatus = cudaMalloc((void **)&d_state, sizeof(State));
-   if (cudaStatus != cudaSuccess) {
+  if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_state) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
   } else {
     std::cout << "[OK] cudaMalloc (d_state) \n";
   }
-  cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
+  cudaStatus =
+      cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
+  if (cudaStatus != cudaSuccess) {
+    std::cout << "[ERROR] cudaMemcpy (d_state) failed: "
+              << cudaGetErrorString(cudaStatus) << std::endl;
+  } else {
+    std::cout << "[OK] cudaMemcpy (d_state) \n";
+  }
   int *h_taken_white_stones = new int[n->children.size()];
   int *d_taken_white_stones;
-  cudaStatus = cudaMalloc((void **)&d_taken_white_stones, n->children.size() * sizeof(int));
+  cudaStatus = cudaMalloc((void **)&d_taken_white_stones,
+                          n->children.size() * sizeof(int));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -703,7 +721,8 @@ void simulate(Node *n, State state) {
   }
   int *h_taken_black_stones = new int[n->children.size()];
   int *d_taken_black_stones;
-  cudaStatus = cudaMalloc((void **)&d_taken_black_stones, n->children.size() * sizeof(int));
+  cudaStatus = cudaMalloc((void **)&d_taken_black_stones,
+                          n->children.size() * sizeof(int));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -715,10 +734,23 @@ void simulate(Node *n, State state) {
     h_taken_white_stones[i] =
         n->children[i]->taken_white_stones; // juz zdobyte kamienie
   }
-  cudaMemcpy(d_taken_white_stones, h_taken_white_stones,
+  cudaStatus =
+      cudaMemcpy(d_taken_white_stones, h_taken_white_stones,
+                 n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
+  if (cudaStatus != cudaSuccess) {
+    std::cout << "[ERROR] cudaMemcpy (d_taken_white_stones) failed: "
+              << cudaGetErrorString(cudaStatus) << std::endl;
+  } else {
+    std::cout << "[OK] cudaMemcpy (d_taken_white_stones) \n";
+  }
+  cudaStatus = cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
              n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
-             n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
+  if (cudaStatus != cudaSuccess) {
+    std::cout << "[ERROR] cudaMemcpy (d_taken_black_stones) failed: "
+              << cudaGetErrorString(cudaStatus) << std::endl;
+  } else {
+    std::cout << "[OK] cudaMemcpy (d_taken_black_stones) \n";
+  }
   std::cout << "In simulate before kernel.\n";
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
