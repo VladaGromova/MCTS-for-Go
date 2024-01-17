@@ -959,7 +959,7 @@ int main(int argc, char **argv) {
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
-  showResults(root_node);
+  //showResults(root_node);
   delete[] root_node;
   return 0;
 }
