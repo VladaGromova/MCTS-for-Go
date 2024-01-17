@@ -571,10 +571,10 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
 }
 
 __global__ void
-randomPlaysKernel(State *d_flattenedCubes/*,
+randomPlaysKernel(State *d_flattenedCubes,
                   int *d_black_scores,       // out
                   int *d_taken_black_stones, // just info for point counting
-                  int *d_taken_white_stones, State state_in_simulation*/) {
+                  int *d_taken_white_stones/*, State state_in_simulation*/) {
                     /*
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -755,8 +755,8 @@ void simulate(Node *n, State state) {
   }
   std::cout << "In simulate before kernel.\n";
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
-      d_flattenedCubes/*, d_black_scores, d_taken_black_stones,
-      d_taken_white_stones, *d_state*/);
+      d_flattenedCubes, d_black_scores, d_taken_black_stones,
+      d_taken_white_stones/*, *d_state*/);
   cudaDeviceSynchronize(); // moze
   std::cout << "In simulate after kernel.\n";
 
