@@ -578,7 +578,7 @@ randomPlaysKernel(State *d_flattenedCubes,
                   int *d_taken_white_stones, State state_in_simulation) {
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  printf("Hello from kernel\n");
+  //printf("Hello from kernel\n");
   curandState cs;
   curand_init(clock64(), tid, 0, &cs);
   State board_for_random_play[SIZE][SIZE];
@@ -693,11 +693,11 @@ void simulate(Node *n, State state) {
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, *d_state);
+  cudaDeviceSynchronize(); // moze
   std::cout << "In simulate after kernel.\n";
 
   cudaMemcpy(h_black_scores, d_black_scores, n->children.size() * sizeof(int),
              cudaMemcpyDeviceToHost);
-  // cudaDeviceSynchronize(); // moze
   for (int i = 0; i < n->children.size(); ++i) {
     n->number_of_simulations += MAX_NUMBER_OF_THREADS;
     n->children[i]->number_of_simulations += MAX_NUMBER_OF_THREADS;
