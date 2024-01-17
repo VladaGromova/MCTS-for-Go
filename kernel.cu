@@ -535,8 +535,11 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
         d_findReached(board, i, j, chain, reached);
         int chain_size = 0;
-        while (chain[chain_size][0] >=0 && chain[chain_size][0]<SIZE && chain[chain_size][1] >=0 && chain[chain_size][1]<SIZE/*chain[chain_size][0] != -1*/) {
-          managed[chain[chain_size][0]][chain[chain_size][1]] = true;//cudamemcheck
+        while (chain[chain_size][0] >= 0 && chain[chain_size][0] < SIZE &&
+               chain[chain_size][1] >= 0 &&
+               chain[chain_size][1] < SIZE /*chain[chain_size][0] != -1*/) {
+          managed[chain[chain_size][0]][chain[chain_size][1]] =
+              true; // cudamemcheck
           ++chain_size;
         }
         color = board[reached[0][0]][reached[0][1]];
@@ -574,8 +577,8 @@ __global__ void
 randomPlaysKernel(State *d_flattenedCubes,
                   int *d_black_scores,       // out
                   int *d_taken_black_stones, // just info for point counting
-                  int *d_taken_white_stones, State* state_in_simulation) {
-                    
+                  int *d_taken_white_stones, State *state_in_simulation) {
+
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   // printf("Hello from kernel\n");
@@ -643,20 +646,16 @@ randomPlaysKernel(State *d_flattenedCubes,
     ++index;
   }
 
-  int results[2] = {0,0};
+  int results[2] = {0, 0};
   d_computeTerritories(board_for_random_play, results);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     atomicAdd(&d_black_scores[blockIdx.x], 1);
   }
   // if(black win) atomicadd(d_black_scores[blockIdx.x], 1)
-  
 }
-
-int num_memcheck=0;
 
 void simulate(Node *n, State state) {
   cudaError_t cudaStatus;
-  std::cout << "I'm in simulate\n";
   int totalSize = n->children.size() * SIZE * SIZE;
   State *h_flattenedCubes = new State[totalSize];
   flattenCube(n, h_flattenedCubes);
@@ -665,54 +664,46 @@ void simulate(Node *n, State state) {
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_flattenedCubes) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-              exit(1);
-  } else {
-    std::cout << "[OK] cudaMalloc (d_flattenedCubes) \n";
+    exit(1);
   }
   cudaStatus = cudaMemcpy(d_flattenedCubes, h_flattenedCubes,
                           totalSize * sizeof(State), cudaMemcpyHostToDevice);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_flattenedCubes) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMemcpy (d_flattenedCubes) \n";
+    exit(1);
   }
   int *h_black_scores =
       new int[n->children.size()]; // kazde dziecko ma 1024 symulacji, tu
                                    // kazde zapisze liczba wygranych dla
                                    // czarnych
   int *d_black_scores;
-  cudaStatus =
-      cudaMalloc(&d_black_scores, n->children.size() * sizeof(int));
+  cudaStatus = cudaMalloc(&d_black_scores, n->children.size() * sizeof(int));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMalloc (d_black_scores) \n";
+    exit(1);
   }
   cudaStatus = cudaMemset(d_black_scores, 0, n->children.size() * sizeof(int));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemset (d_black_scores) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMemset (d_black_scores) \n";
+    exit(1);
   }
   // state_in_simulation = state;
-  State* d_state;
+  State *d_state;
   cudaStatus = cudaMalloc(&d_state, sizeof(State));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_state) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMalloc (d_state) \n";
+    exit(1);
   }
   cudaStatus =
       cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_state) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMemcpy (d_state) \n";
+    exit(1);
   }
   int *h_taken_white_stones = new int[n->children.size()];
   int *d_taken_white_stones;
@@ -721,8 +712,7 @@ void simulate(Node *n, State state) {
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMalloc (d_taken_white_stones) \n";
+    exit(1);
   }
   int *h_taken_black_stones = new int[n->children.size()];
   int *d_taken_black_stones;
@@ -731,9 +721,8 @@ void simulate(Node *n, State state) {
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMalloc (d_taken_black_stones) \n";
-  }
+    exit(1);
+  } 
   for (int i = 0; i < n->children.size(); ++i) {
     h_taken_black_stones[i] = n->children[i]->taken_black_stones;
     h_taken_white_stones[i] =
@@ -745,25 +734,21 @@ void simulate(Node *n, State state) {
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMemcpy (d_taken_white_stones) \n";
-  }
-  cudaStatus = cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
-             n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
+    exit(1);
+  } 
+  cudaStatus =
+      cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
+                 n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
-  } else {
-    std::cout << "[OK] cudaMemcpy (d_taken_black_stones) \n";
+    exit(1);
   }
-  std::cout << "In simulate before kernel.\n";
-  std::cout<<"Nr: "<<num_memcheck<<'\n';
-  ++num_memcheck;
+  
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, d_state);
-  cudaDeviceSynchronize(); // moze
-  std::cout << "In simulate after kernel.\n";
+  cudaDeviceSynchronize();
 
   cudaMemcpy(h_black_scores, d_black_scores, n->children.size() * sizeof(int),
              cudaMemcpyDeviceToHost);
@@ -774,10 +759,10 @@ void simulate(Node *n, State state) {
     n->children[i]->black_score =
         n->children[i]->black_score + h_black_scores[i];
   }
-  delete [] h_flattenedCubes;
-  delete [] h_black_scores;
-  delete [] h_taken_black_stones;
-  delete [] h_taken_white_stones;
+  delete[] h_flattenedCubes;
+  delete[] h_black_scores;
+  delete[] h_taken_black_stones;
+  delete[] h_taken_white_stones;
   cudaFree(d_flattenedCubes);
   cudaFree(d_black_scores);
   cudaFree(d_taken_black_stones);
@@ -975,6 +960,6 @@ int main(int argc, char **argv) {
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node);
-  delete [] root_node;
+  delete[] root_node;
   return 0;
 }
