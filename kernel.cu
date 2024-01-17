@@ -536,7 +536,7 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
         d_findReached(board, i, j, chain, reached);
         int chain_size = 0;
         while (chain[chain_size][0] != -1) {
-          managed[chain[chain_size][0]][chain[chain_size][1]] = true;
+          managed[chain[chain_size][0]][chain[chain_size][1]] = true;//cudamemcheck
           ++chain_size;
         }
         color = board[reached[0][0]][reached[0][1]];
@@ -588,7 +588,7 @@ randomPlaysKernel(State *d_flattenedCubes,
           d_flattenedCubes[SIZE * SIZE * blockIdx.x + SIZE * i + j];
     }
   }
-  __syncthreads(); // Synchronize threads to ensure all data is copied
+  //__syncthreads(); // Synchronize threads to ensure all data is copied
   State state = BLACK;
   if (*state_in_simulation == BLACK) {
     state = WHITE;
@@ -643,8 +643,8 @@ randomPlaysKernel(State *d_flattenedCubes,
     ++index;
   }
 
-  int results[2];
-  d_computeTerritories(board_for_random_play, results);
+  int results[2] = {0,0};
+  //d_computeTerritories(board_for_random_play, results);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     atomicAdd(&d_black_scores[blockIdx.x], 1);
   }
