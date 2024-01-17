@@ -11,7 +11,7 @@
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
 #define MAX_DEPTH 15 // tyle razy wykonamy te 3 etapy
-#define MOVEMENTS 60
+#define MOVEMENTS 40
 
 enum State { EMPTY, BLACK, WHITE };
 
@@ -112,6 +112,35 @@ void printBoard(Node *n) {
       if (n->board[i][j] == EMPTY) {
         std::cout << ".\t";
       } else if (n->board[i][j] == BLACK) {
+        std::cout << "X\t";
+      } else {
+        std::cout << "O\t";
+      }
+    }
+    std::cout << '\n';
+  }
+  std::cout << '\n';
+}
+
+void printPrevPosBoard(State board[SIZE][SIZE]) {
+  std::cout << '\t';
+  std::cout << '\t';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << i << '\t';
+  }
+  std::cout << '\n';
+  std::cout << '\t';
+  std::cout << '\t';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << "_\t";
+  }
+  std::cout << '\n';
+  for (int i = 0; i < SIZE; ++i) {
+    std::cout << i << '\t' << '|' << '\t';
+    for (int j = 0; j < SIZE; ++j) {
+      if (board[i][j] == EMPTY) {
+        std::cout << ".\t";
+      } else if (board[i][j] == BLACK) {
         std::cout << "X\t";
       } else {
         std::cout << "O\t";
@@ -439,7 +468,19 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
   }
 }
 
-void showResults(Node* root_node){
+void showResults(Node* root_node, State actual_state){
+  std::cout<<"Now we will see the results\n";
+  std::cout<<"Previous position for black:\n";
+  printPrevPosBoard(previousPositionForBlack);
+  std::cout<<"Previous position for white:\n";
+  printPrevPosBoard(previousPositionForWhite);
+  if(actual_state == BLACK){
+    copyBoard(previousPositionForBlack, root_node->board);
+  } else {
+  copyBoard(previousPositionForWhite, root_node->board);
+  }
+  std::cout<<"Main board\n";
+  printBoard(root_node);
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
@@ -585,7 +626,7 @@ int main(int argc, char **argv) {
   State humanState = BLACK;
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp, humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
-  showResults(root_node);
+  showResults(root_node, actual_state);
   
   return 0;
 }
