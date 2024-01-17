@@ -839,13 +839,18 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
   return parent->children[0];
 }
 
-void showResults(Node *root_node) {
+void showResults(Node *root_node, State actual_state) {
   std::cout<<"Hello from show results\n";
   printBoard(root_node);
   std::cout<<"Previous position for black:\n";
   printPrevPosBoard(previousPositionForBlack);
   std::cout<<"Previous position for white:\n";
   printPrevPosBoard(previousPositionForWhite);
+  if(actual_state == BLACK){
+    copyBoard(previousPositionForBlack, root_node->board);
+  } else {
+  copyBoard(previousPositionForWhite, root_node->board);
+  }
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
@@ -998,7 +1003,7 @@ int main(int argc, char **argv) {
                 humanState);
   play(root_node, actual_state, isHumanVsComp, humanState);
   std::cout<<"Now we will see results\n";
-  showResults(root_node);
+  showResults(root_node, actual_state);
   //delete[] root_node;
   return 0;
 }
