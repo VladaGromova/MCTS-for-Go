@@ -293,6 +293,7 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
   State color;
   int white_territory = 0;
   int black_territory = 0;
+  
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
@@ -810,6 +811,7 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
 
 void showResults(Node *root_node) {
   std::cout<<"Hello from show results\n";
+  printBoard(root_node);
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
