@@ -687,10 +687,11 @@ void simulate(Node *n, State state) {
              n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
   cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
              n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
-
+             std::cout<<"In simulate before kernel.\n";
   randomPlaysKernel<<<n->children.size(), MAX_NUMBER_OF_THREADS>>>(
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, *d_state);
+      std::cout<<"In simulate after kernel.\n";
 
   cudaMemcpy(h_black_scores, d_black_scores,
              n->children.size() * sizeof(int), cudaMemcpyDeviceToHost);
