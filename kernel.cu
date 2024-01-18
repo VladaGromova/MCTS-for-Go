@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 #define C sqrt(2)
 #define SIZE 9
@@ -26,6 +27,14 @@ enum State { EMPTY, BLACK, WHITE };
 std::vector<std::pair<int, int>> NEIGHBOURS[SIZE][SIZE];
 State previousPositionForBlack[SIZE][SIZE];
 State previousPositionForWhite[SIZE][SIZE];
+std::chrono::duration<double> total_time_selection;
+std::chrono::duration<double> total_time_expansion;
+std::chrono::duration<double> total_time_simulation;
+std::chrono::duration<double> total_time_backpropagation;
+long selection_moves = 0;
+long expansion_moves = 0;
+long simulation_moves = 0;
+long backpropagation_moves = 0;
 
 typedef struct Node {
   State board[SIZE][SIZE];
@@ -911,6 +920,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
   int row_by_user, col_by_user;
   std::cout << "\nStart board: \n";
   printBoard(root_node);
+  std::chrono::high_resolution_clock::time_point start, end;
   while (mov_ind < MOVEMENTS) {
     max_depth_ind = 0;
     while (max_depth_ind < MAX_DEPTH) {
@@ -922,7 +932,12 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
         } else {
           whoose_move = changeState(actual_state);
         }
+        
+        start = std::chrono::high_resolution_clock::now();
         actual_node = findMaxUctChild(actual_node, whoose_move); // select
+        end = std::chrono::high_resolution_clock::now();
+        ++selection_moves;
+        total_time_selection += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         ++local_depth;
       }
       if (local_depth % 2 == 0) {
@@ -930,9 +945,21 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
       } else {
         whoose_move = changeState(actual_state);
       }
+      start = std::chrono::high_resolution_clock::now();
       expand(actual_node, whoose_move);
+      end = std::chrono::high_resolution_clock::now();
+      ++expansion_moves;
+      total_time_expansion += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      start = std::chrono::high_resolution_clock::now();
       simulate(actual_node, whoose_move);
+      end = std::chrono::high_resolution_clock::now();
+      ++simulation_moves;
+      total_time_simulation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      start = std::chrono::high_resolution_clock::now();
       backpropagate(actual_node);
+      end = std::chrono::high_resolution_clock::now();
+      ++backpropagation_moves;
+      total_time_backpropagation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       ++max_depth_ind;
     }
 
@@ -1034,6 +1061,17 @@ void preProcessing(Node *root_node, State &actual_state,
   }
 }
 
+void showTime(){
+  double average_time_selection = total_time_selection.count() / (double)selection_moves;
+  double average_time_expansion = total_time_expansion.count() / (double)expansion_moves;
+  double average_time_simulation = total_time_simulation.count() / (double)simulation_moves;
+  double average_time_backpropagation = total_time_backpropagation.count() / (double)backpropagation_moves;
+  std::cout<<"Selection avrage time: "<<average_time_selection<<" \n";
+  std::cout<<"Expansion avrage time: "<<average_time_expansion<<" \n";
+  std::cout<<"Simulation avrage time: "<<average_time_simulation<<" \n";
+  std::cout<<"Backpropagation avrage time: "<<average_time_backpropagation<<" \n";
+}
+
 int main(int argc, char **argv) {
   State actual_state = BLACK;
   bool is_black = true;
@@ -1046,6 +1084,7 @@ int main(int argc, char **argv) {
   play(root_node, actual_state, isHumanVsComp, humanState);
   std::cout << "Now we will see results\n";
   showResults(root_node, actual_state);
+  showTime();
   // delete[] root_node;
   return 0;
 }
