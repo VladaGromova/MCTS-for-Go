@@ -284,19 +284,14 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       return std::make_pair(false, taken_stones);
     }
   }
-  bool is_ko;
-  if (state == BLACK) {
-    is_ko = isKo(previousPositionForBlack, board);
-  } else {
-    is_ko = isKo(previousPositionForWhite, board);
-  }
   board[row][col] = EMPTY;
-  if(is_ko) return std::make_pair(false, taken_stones);
   return std::make_pair(true, taken_stones);
 }
 
 void createChildren(Node *n, int i, int j, State state) {
   auto taken_stones = couldPlaceStone(n->board, i, j, state).second;
+
+  //std::cout << "children " << i << " " << j << " created!\n";
   Node *childNode = new Node();
   copyBoard(n->board, childNode->board);
   childNode->board[i][j] = state;
