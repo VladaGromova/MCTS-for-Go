@@ -284,12 +284,14 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       return std::make_pair(false, taken_stones);
     }
   }
+  bool is_ko;
   if (state == BLACK) {
-    isKo(previousPositionForBlack, board);
+    is_ko = isKo(previousPositionForBlack, board);
   } else {
-    isKo(previousPositionForWhite, board);
+    is_ko = isKo(previousPositionForWhite, board);
   }
   board[row][col] = EMPTY;
+  if(is_ko) return std::make_pair(false, taken_stones);
   return std::make_pair(true, taken_stones);
 }
 
