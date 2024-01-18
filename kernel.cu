@@ -1,6 +1,7 @@
 #include <algorithm>
-#include <cstdlib>
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -12,7 +13,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <chrono>
 
 #define C sqrt(2)
 #define SIZE 9
@@ -23,8 +23,6 @@
 
 enum State { EMPTY, BLACK, WHITE };
 
-//__device__ __managed__ State state_in_simulation;
-
 std::vector<std::pair<int, int>> NEIGHBOURS[SIZE][SIZE];
 State previousPositionForBlack[SIZE][SIZE];
 State previousPositionForWhite[SIZE][SIZE];
@@ -32,6 +30,7 @@ std::chrono::duration<double> total_time_selection;
 std::chrono::duration<double> total_time_expansion;
 std::chrono::duration<double> total_time_simulation;
 std::chrono::duration<double> total_time_backpropagation;
+std::chrono::duration<double> total_time_CPU_GPU_copying;
 long selection_moves = 0;
 long expansion_moves = 0;
 long simulation_moves = 0;
@@ -537,16 +536,16 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
 
 __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
   bool managed[SIZE][SIZE];
-  //printf("Board:\n");
+  // printf("Board:\n");
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       managed[i][j] = false;
-      //printf("%d ", board[i][j]);
+      // printf("%d ", board[i][j]);
     }
-    //printf("\n");
+    // printf("\n");
   }
-  
-    //printf("\n");
+
+  // printf("\n");
   int chain[SIZE * SIZE][2];
   int reached[SIZE * SIZE][2];
   State color;
@@ -673,31 +672,32 @@ randomPlaysKernel(State *d_flattenedCubes,
   }
 
   int results[2] = {0, 0};
-  for(int i=0; i<SIZE; ++i){
-    for(int j=0; j<SIZE; ++j){
-      if(board_for_random_play[i][j]==BLACK){
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      if (board_for_random_play[i][j] == BLACK) {
         results[0] = results[0] + 1;
-      } else if(board_for_random_play[i][j]==WHITE){
+      } else if (board_for_random_play[i][j] == WHITE) {
         results[1] = results[1] + 1;
-        }
+      }
     }
   }
-  if(state==WHITE){
+  if (state == WHITE) {
     results[1] = results[1] + 1;
   }
-  //d_computeTerritories(board_for_random_play, results);
+  // d_computeTerritories(board_for_random_play, results);
   __syncthreads();
- // printf("Thread %d: B land = %d, W land = %d \n", tid, results[0], results[1]);
+  // printf("Thread %d: B land = %d, W land = %d \n", tid, results[0],
+  // results[1]);
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 1.0;
-    //printf("Thread %d: here black won\n", tid);
+    // printf("Thread %d: here black won\n", tid);
   } else if ((results[0] + lost_white_stones) ==
              (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 0.5;
-    //printf("Thread %d: here is draw\n", tid);
+    // printf("Thread %d: here is draw\n", tid);
   } else {
-    
-    //printf("Thread %d: here white won\n", tid);
+
+    // printf("Thread %d: here white won\n", tid);
   }
   __syncthreads();
   if (threadIdx.x == 0) {
@@ -719,8 +719,14 @@ void simulate(Node *n, State state) {
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
+
+  std::chrono::high_resolution_clock::time_point start, end;
+  start = std::chrono::high_resolution_clock::now();
   cudaStatus = cudaMemcpy(d_flattenedCubes, h_flattenedCubes,
                           totalSize * sizeof(State), cudaMemcpyHostToDevice);
+  end = std::chrono::high_resolution_clock::now();
+  total_time_CPU_GPU_copying +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_flattenedCubes) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -752,8 +758,12 @@ void simulate(Node *n, State state) {
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
+  start = std::chrono::high_resolution_clock::now();
   cudaStatus =
       cudaMemcpy(d_state, &state, sizeof(State), cudaMemcpyHostToDevice);
+  end = std::chrono::high_resolution_clock::now();
+  total_time_CPU_GPU_copying +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_state) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -782,17 +792,26 @@ void simulate(Node *n, State state) {
     h_taken_white_stones[i] =
         n->children[i]->taken_white_stones; // juz zdobyte kamienie
   }
+  start = std::chrono::high_resolution_clock::now();
   cudaStatus =
       cudaMemcpy(d_taken_white_stones, h_taken_white_stones,
                  n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+  end = std::chrono::high_resolution_clock::now();
+  total_time_CPU_GPU_copying +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_taken_white_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
+  start = std::chrono::high_resolution_clock::now();
   cudaStatus =
       cudaMemcpy(d_taken_black_stones, h_taken_black_stones,
                  n->children.size() * sizeof(int), cudaMemcpyHostToDevice);
+  end = std::chrono::high_resolution_clock::now();
+  total_time_CPU_GPU_copying +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMemcpy (d_taken_black_stones) failed: "
               << cudaGetErrorString(cudaStatus) << std::endl;
@@ -803,9 +822,12 @@ void simulate(Node *n, State state) {
       d_flattenedCubes, d_black_scores, d_taken_black_stones,
       d_taken_white_stones, d_state);
   cudaDeviceSynchronize();
-
+  start = std::chrono::high_resolution_clock::now();
   cudaMemcpy(h_black_scores, d_black_scores,
              n->children.size() * sizeof(double), cudaMemcpyDeviceToHost);
+  end = std::chrono::high_resolution_clock::now();
+  total_time_CPU_GPU_copying +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   for (int i = 0; i < n->children.size(); ++i) {
     n->number_of_simulations += MAX_NUMBER_OF_THREADS;
     n->children[i]->number_of_simulations += MAX_NUMBER_OF_THREADS;
@@ -920,7 +942,8 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
         actual_node = findMaxUctChild(actual_node, whoose_move); // select
         end = std::chrono::high_resolution_clock::now();
         ++selection_moves;
-        total_time_selection += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        total_time_selection +=
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         ++local_depth;
       }
       if (local_depth % 2 == 0) {
@@ -932,24 +955,28 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
       expand(actual_node, whoose_move);
       end = std::chrono::high_resolution_clock::now();
       ++expansion_moves;
-      total_time_expansion += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_expansion +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       start = std::chrono::high_resolution_clock::now();
       simulate(actual_node, whoose_move);
       end = std::chrono::high_resolution_clock::now();
       ++simulation_moves;
-      total_time_simulation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_simulation +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       start = std::chrono::high_resolution_clock::now();
       backpropagate(actual_node);
       end = std::chrono::high_resolution_clock::now();
       ++backpropagation_moves;
-      total_time_backpropagation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_backpropagation +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       ++max_depth_ind;
     }
 
     if (isHumanVsComp && actual_state == humanState) {
       std::cout << "Your move:\n";
       std::cin >> row_by_user >> col_by_user;
-      if(row_by_user==-1) return;
+      if (row_by_user == -1)
+        return;
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
@@ -1019,7 +1046,7 @@ void preProcessing(Node *root_node, State &actual_state,
       exit(1);
     }
   }
-  if(num_of_o != num_of_x){
+  if (num_of_o != num_of_x) {
     actual_state = WHITE;
   }
 
@@ -1050,15 +1077,22 @@ void preProcessing(Node *root_node, State &actual_state,
   }
 }
 
-void showTime(){
-  double average_time_selection = total_time_selection.count() / (double)selection_moves;
-  double average_time_expansion = total_time_expansion.count() / (double)expansion_moves;
-  double average_time_simulation = total_time_simulation.count() / (double)simulation_moves;
-  double average_time_backpropagation = total_time_backpropagation.count() / (double)backpropagation_moves;
-  std::cout<<"Selection average time: "<<average_time_selection<<" \n";
-  std::cout<<"Expansion average time: "<<average_time_expansion<<" \n";
-  std::cout<<"Simulation average time: "<<average_time_simulation<<" \n";
-  std::cout<<"Backpropagation average time: "<<average_time_backpropagation<<" \n";
+void showTime() {
+  double average_time_selection =
+      total_time_selection.count() / (double)selection_moves;
+  double average_time_expansion =
+      total_time_expansion.count() / (double)expansion_moves;
+  double average_time_simulation =
+      total_time_simulation.count() / (double)simulation_moves;
+  double average_time_backpropagation =
+      total_time_backpropagation.count() / (double)backpropagation_moves;
+  std::cout << "Selection average time: " << average_time_selection << " \n";
+  std::cout << "Expansion average time: " << average_time_expansion << " \n";
+  std::cout << "Simulation average time: " << average_time_simulation << " \n";
+  std::cout << "Backpropagation average time: " << average_time_backpropagation
+            << " \n";
+  std::cout << "CPU-GPU data copying: " << total_time_CPU_GPU_copying.count()
+            << '\n';
 }
 
 int main(int argc, char **argv) {
@@ -1067,7 +1101,7 @@ int main(int argc, char **argv) {
   State actual_board[SIZE][SIZE];
   Node *root_node = new Node;
   bool isHumanVsComp = false;
-bool is_load_board = false;
+  bool is_load_board = false;
   std::string filename = "";
   if (argc >= 2) {
     is_load_board = true;
