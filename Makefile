@@ -9,7 +9,7 @@ seq.exe: seq.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< -lstdc++
 
 kernel.exe: kernel.cu
-	$(NVCC) $(NVCCFLAGS) -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -Xcompiler "-D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES -D__STRICT_ANSI__" -o $@ $<
 
 clean:
 	rm -f seq.exe kernel.exe
