@@ -1,12 +1,13 @@
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 #include <math.h>
 #include <string>
 #include <utility>
 #include <vector>
-#include <chrono>
 
 #define C sqrt(2)
 #define SIZE 9
@@ -38,7 +39,7 @@ typedef struct Node {
   int taken_white_stones = 0;
   unsigned int number_of_simulations = 0;
   double black_score = 0.0;
-  //double uct;
+  // double uct;
   ~Node() {
     for (Node *child : children) {
       delete child;
@@ -62,7 +63,7 @@ typedef struct Node {
     return profitChildren;
   }
 
-   std::vector<Node *> getMaxProfitForBlack() {
+  std::vector<Node *> getMaxProfitForBlack() {
     std::vector<Node *> profitChildren;
     int profit = taken_white_stones - taken_black_stones;
     int tmp = 0;
@@ -104,57 +105,21 @@ void copyBoard(State source[SIZE][SIZE], State destination[SIZE][SIZE]) {
   }
 }
 
-void printBoard(Node *n) {
-  std::cout<<'\t';
-  std::cout<<'\t';
-  for (int i=0; i<SIZE; ++i) {
-    std::cout<<i<<'\t';
-  }
-  std::cout<<'\n';
-  std::cout<<'\t';
-  std::cout<<'\t';
-  for (int i=0; i<SIZE; ++i) {
-    std::cout<<"_\t";
-  }
-  std::cout<<'\n';
+void printBoard(State board[SIZE][SIZE]) {
+  std::cout << "    ";
   for (int i = 0; i < SIZE; ++i) {
-    std::cout<<i<<'\t'<<'|'<<'\t';
-    for (int j = 0; j < SIZE; ++j) {
-      if (n->board[i][j] == EMPTY) {
-        std::cout << ".\t";
-      } else if (n->board[i][j] == BLACK) {
-        std::cout << "X\t";
-      } else {
-        std::cout << "O\t";
-      }
-    }
-    std::cout << '\n';
-  }
-  std::cout << '\n';
-}
-
-void printPrevPosBoard(State board[SIZE][SIZE]) {
-  std::cout << '\t';
-  std::cout << '\t';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t';
-  }
-  std::cout << '\n';
-  std::cout << '\t';
-  std::cout << '\t';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << "_\t";
+    std::cout << i << ' ';
   }
   std::cout << '\n';
   for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t' << '|' << '\t';
+    std::cout << i << ' ' << ' ' << " ";
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY) {
-        std::cout << ".\t";
+        std::cout << ". ";
       } else if (board[i][j] == BLACK) {
-        std::cout << "X\t";
+        std::cout << "X ";
       } else {
-        std::cout << "O\t";
+        std::cout << "O ";
       }
     }
     std::cout << '\n';
@@ -223,9 +188,9 @@ findReached(State board[SIZE][SIZE], int i, int j) {
   return std::make_pair(chain, reached);
 }
 
-State changeState(State state){
+State changeState(State state) {
   if (state == BLACK) {
-     return WHITE;
+    return WHITE;
   } else {
     return BLACK;
   }
@@ -284,14 +249,33 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       return std::make_pair(false, taken_stones);
     }
   }
+  // KO check
+  bool is_ko;
+  for (int i = 0; i < taken_stones.size(); ++i) {
+    board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
+  }
+  if (state == WHITE) {
+    is_ko = isKo(previousPositionForBlack, board);
+  } else {
+    is_ko = isKo(previousPositionForWhite, board);
+  }
+  if (is_ko) {
+    return std::make_pair(false, taken_stones);
+  }
+
+  for (int i = 0; i < taken_stones.size(); ++i) {
+    board[taken_stones[i].first][taken_stones[i].second] = alternativeState;
+  }
   board[row][col] = EMPTY;
   return std::make_pair(true, taken_stones);
 }
 
 void createChildren(Node *n, int i, int j, State state) {
-  auto taken_stones = couldPlaceStone(n->board, i, j, state).second;
+  State tmp_board[SIZE][SIZE];
+  copyBoard(n->board, tmp_board);
+  auto taken_stones = couldPlaceStone(tmp_board, i, j, state).second;
 
-  //std::cout << "children " << i << " " << j << " created!\n";
+  // std::cout << "children " << i << " " << j << " created!\n";
   Node *childNode = new Node();
   copyBoard(n->board, childNode->board);
   childNode->board[i][j] = state;
@@ -412,9 +396,11 @@ State randomPlays(Node *n, State state) {
 }
 
 void expand(Node *n, State state) {
+  State tmp_board[SIZE][SIZE];
+  copyBoard(n->board, tmp_board);
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
-      if (couldPlaceStone(n->board, i, j, state).first) {
+      if (couldPlaceStone(tmp_board, i, j, state).first) {
         createChildren(
             n, i, j,
             state); // i j - tu ustawimy kamien i takie dziecko dodamy do n
@@ -451,10 +437,10 @@ Node *findMaxUctChild(Node *parent, State state) {
   }
   for (Node *child : topChildren) {
     double uctValue = calculateUct(child, state);
-      if (uctValue > maxUCT) {
-        maxUCT = uctValue;
-        maxUCTChild = child;
-      }
+    if (uctValue > maxUCT) {
+      maxUCT = uctValue;
+      maxUCTChild = child;
+    }
   }
   return maxUCTChild;
 }
@@ -476,26 +462,27 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
   }
 }
 
-void showResults(Node* root_node, State actual_state){
-  std::cout<<"Now we will see the results\n";
-  std::cout<<"Previous position for black:\n";
-  printPrevPosBoard(previousPositionForBlack);
-  std::cout<<"Previous position for white:\n";
-  printPrevPosBoard(previousPositionForWhite);
-  if(actual_state == BLACK){
+void showResults(Node *root_node, State actual_state) {
+  std::cout << "Now we will see the results\n";
+  std::cout << "Previous position for black:\n";
+  printBoard(previousPositionForBlack);
+  std::cout << "Previous position for white:\n";
+  printBoard(previousPositionForWhite);
+  if (actual_state == BLACK) {
     copyBoard(previousPositionForBlack, root_node->board);
   } else {
-  copyBoard(previousPositionForWhite, root_node->board);
+    copyBoard(previousPositionForWhite, root_node->board);
   }
-  std::cout<<"Main board\n";
-  printBoard(root_node);
+  std::cout << "Main board\n";
+  printBoard(root_node->board);
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
-   int lost_black_stones = total_taken_black;
+  int lost_black_stones = total_taken_black;
   int lost_white_stones = total_taken_white;
   std::cout << "Lost black stones: " << lost_black_stones << '\n';
   std::cout << "Lost white stones: " << lost_white_stones << '\n';
+  std::cout << "-------------------------------------\n";
   if ((main_results.first + lost_white_stones) >
       (main_results.second + lost_black_stones)) {
     std::cout << "BLACK won\n";
@@ -505,20 +492,22 @@ void showResults(Node* root_node, State actual_state){
   } else {
     std::cout << "DRAW\n";
   }
+  std::cout << "-------------------------------------\n";
 }
 
-void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanState){
-  Node* actual_node;
+void play(Node *root_node, State actual_state, bool isHumanVsComp,
+          State humanState) {
+  Node *actual_node;
   State whoose_move = actual_state;
   int max_depth_ind = 0;
   int mov_ind = 0;
   int row_by_user, col_by_user;
   std::cout << "\nStart board: \n";
-  printBoard(root_node);
+  printBoard(root_node->board);
   std::chrono::high_resolution_clock::time_point start, end;
   while (mov_ind < MOVEMENTS) {
     max_depth_ind = 0;
-    while (max_depth_ind < MAX_DEPTH) { 
+    while (max_depth_ind < MAX_DEPTH) {
       actual_node = root_node;
       int local_depth = 0;
       while (actual_node->children.size() != 0) {
@@ -531,7 +520,8 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
         actual_node = findMaxUctChild(actual_node, whoose_move); // select
         end = std::chrono::high_resolution_clock::now();
         ++selection_moves;
-        total_time_selection += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        total_time_selection +=
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         ++local_depth;
       }
       if (local_depth % 2 == 0) {
@@ -543,33 +533,38 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
       expand(actual_node, whoose_move);
       end = std::chrono::high_resolution_clock::now();
       ++expansion_moves;
-      total_time_expansion += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_expansion +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       start = std::chrono::high_resolution_clock::now();
       simulate(actual_node, whoose_move);
       end = std::chrono::high_resolution_clock::now();
       ++simulation_moves;
-      total_time_simulation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_simulation +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       start = std::chrono::high_resolution_clock::now();
       backpropagate(actual_node);
       end = std::chrono::high_resolution_clock::now();
       ++backpropagation_moves;
-      total_time_backpropagation += std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      total_time_backpropagation +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       ++max_depth_ind;
     }
 
     if (isHumanVsComp && actual_state == humanState) {
       std::cout << "Your move:\n";
       std::cin >> row_by_user >> col_by_user;
-      if(row_by_user==-1) return;
+      if (row_by_user == -1)
+        return;
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
-      root_node = findMaxUctChild(root_node, actual_state); // na pewno bo tu robimy ruch
+      root_node = findMaxUctChild(root_node,
+                                  actual_state); // na pewno bo tu robimy ruch
     }
 
     std::cout << "\nNr: " << mov_ind << '\n';
-    printBoard(root_node);
-    
+    printBoard(root_node->board);
+
     total_taken_black = root_node->taken_black_stones;
     total_taken_white = root_node->taken_white_stones;
     std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
@@ -585,54 +580,69 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
   }
 }
 
-void emptyBoard(State actual_board[SIZE][SIZE]){
-   for (int i = 0; i < SIZE; ++i) {
+void emptyBoard(State actual_board[SIZE][SIZE]) {
+  for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       actual_board[i][j] = EMPTY;
     }
   }
 }
 
-void loadBoard(State& actual_state, State actual_board[SIZE][SIZE]){
-  std::cout<<"Load your board\n";
-  std::cin.ignore();
-    std::string input;
-    int num_of_x = 0;
-    int num_of_o = 0;
-    for (int i = 0; i < SIZE; ++i) {
-      std::getline(std::cin, input);
-      int char_nr = 0;
-      for (char c : input) {
-        if (c == 'X' || c == 'x') {
-          ++num_of_x;
-          actual_board[i][char_nr] = BLACK;
-        } else if (c == 'O' || c == 'o') {
-          ++num_of_o;
-          actual_board[i][char_nr] = WHITE;
-        }
-        ++char_nr;
-      }
-    }
-    if(num_of_x != num_of_o){
-      actual_state = WHITE;
-    }
-}
-
-void preProcessing(Node *root_node, State& actual_state, State actual_board[SIZE][SIZE], bool& is_black, bool& isHumanVsComp, State& humanState){
+void preProcessing(Node *root_node, State &actual_state,
+                   State actual_board[SIZE][SIZE], bool &is_black,
+                   bool &isHumanVsComp, State &humanState, bool is_load_board,
+                   std::string &filename) {
   std::srand(std::time(0));
   emptyBoard(actual_board);
   createNeighbours();
-  int tmp;
-  std::cout << "Do you want to load board? 1 - yes, 2 - no\n";
-  std::cin >> tmp;
-  if (tmp == 1) {
-    loadBoard(actual_state, actual_board);
-  }
-  copyBoard(actual_board, root_node->board);
-  copyBoard(actual_board, previousPositionForBlack);
-  copyBoard(actual_board, previousPositionForWhite);
 
-  std::cout<< "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
+  int num_of_o = 0;
+  int num_of_x = 0;
+  if (is_load_board) {
+    std::ifstream file(filename);
+    if (file.is_open()) {
+      std::string line;
+      int i = 0;
+      while (getline(file, line)) {
+        int j = 0;
+        // std::cout << line << std::endl;
+        for (char c : line) {
+          if (c == 'o' || c == 'O') {
+            actual_board[i][j] = WHITE;
+            ++num_of_o;
+          } else if (c == 'x' || c == 'X') {
+            actual_board[i][j] = BLACK;
+            ++num_of_x;
+          }
+          ++j;
+        }
+        ++i;
+      }
+
+      file.close();
+    } else {
+      std::cerr << "Unable to open file: " << filename << std::endl;
+      exit(1);
+    }
+  }
+  if(num_of_o != num_of_x){
+    actual_state = WHITE;
+  }
+
+  copyBoard(actual_board, root_node->board);
+  std::cout << "Input board:\n";
+  printBoard(root_node->board);
+  if (actual_state == BLACK) {
+    copyBoard(actual_board, previousPositionForBlack);
+    emptyBoard(previousPositionForWhite);
+  } else {
+    copyBoard(actual_board, previousPositionForWhite);
+    emptyBoard(previousPositionForBlack);
+  }
+
+  int tmp;
+  std::cout
+      << "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
   std::cin >> tmp;
   if (tmp == 2) {
     isHumanVsComp = true;
@@ -646,15 +656,20 @@ void preProcessing(Node *root_node, State& actual_state, State actual_board[SIZE
   }
 }
 
-void showTime(){
-  double average_time_selection = total_time_selection.count() / (double)selection_moves;
-  double average_time_expansion = total_time_expansion.count() / (double)expansion_moves;
-  double average_time_simulation = total_time_simulation.count() / (double)simulation_moves;
-  double average_time_backpropagation = total_time_backpropagation.count() / (double)backpropagation_moves;
-  std::cout<<"Selection avrage time: "<<average_time_selection<<" \n";
-  std::cout<<"Expansion avrage time: "<<average_time_expansion<<" \n";
-  std::cout<<"Simulation avrage time: "<<average_time_simulation<<" \n";
-  std::cout<<"Backpropagation avrage time: "<<average_time_backpropagation<<" \n";
+void showTime() {
+  double average_time_selection =
+      total_time_selection.count() / (double)selection_moves;
+  double average_time_expansion =
+      total_time_expansion.count() / (double)expansion_moves;
+  double average_time_simulation =
+      total_time_simulation.count() / (double)simulation_moves;
+  double average_time_backpropagation =
+      total_time_backpropagation.count() / (double)backpropagation_moves;
+  std::cout << "Selection avrage time: " << average_time_selection << " \n";
+  std::cout << "Expansion avrage time: " << average_time_expansion << " \n";
+  std::cout << "Simulation avrage time: " << average_time_simulation << " \n";
+  std::cout << "Backpropagation avrage time: " << average_time_backpropagation
+            << " \n";
 }
 
 int main(int argc, char **argv) {
@@ -663,8 +678,15 @@ int main(int argc, char **argv) {
   State actual_board[SIZE][SIZE];
   Node *root_node = new Node;
   bool isHumanVsComp = false;
+  bool is_load_board = false;
+  std::string filename = "";
+  if (argc >= 2) {
+    is_load_board = true;
+    filename = argv[1];
+  }
   State humanState = BLACK;
-  preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp, humanState);
+  preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
+                humanState, is_load_board, filename);
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node, actual_state);
   showTime();
