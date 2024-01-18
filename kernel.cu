@@ -878,11 +878,11 @@ void showResults(Node *root_node, State actual_state) {
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
-  std::cout << "-------------------------------------\n";
   int lost_black_stones = total_taken_black;
   int lost_white_stones = total_taken_white;
   std::cout << "Lost black stones: " << total_taken_black << '\n';
   std::cout << "Lost white stones: " << total_taken_white << '\n';
+  std::cout << "-------------------------------------\n";
   if ((main_results.first + lost_white_stones) >
       (main_results.second + lost_black_stones)) {
     std::cout << "BLACK won\n";
@@ -1055,10 +1055,10 @@ void showTime(){
   double average_time_expansion = total_time_expansion.count() / (double)expansion_moves;
   double average_time_simulation = total_time_simulation.count() / (double)simulation_moves;
   double average_time_backpropagation = total_time_backpropagation.count() / (double)backpropagation_moves;
-  std::cout<<"Selection avrage time: "<<average_time_selection<<" \n";
-  std::cout<<"Expansion avrage time: "<<average_time_expansion<<" \n";
-  std::cout<<"Simulation avrage time: "<<average_time_simulation<<" \n";
-  std::cout<<"Backpropagation avrage time: "<<average_time_backpropagation<<" \n";
+  std::cout<<"Selection average time: "<<average_time_selection<<" \n";
+  std::cout<<"Expansion average time: "<<average_time_expansion<<" \n";
+  std::cout<<"Simulation average time: "<<average_time_simulation<<" \n";
+  std::cout<<"Backpropagation average time: "<<average_time_backpropagation<<" \n";
 }
 
 int main(int argc, char **argv) {

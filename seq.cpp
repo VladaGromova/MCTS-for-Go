@@ -663,10 +663,10 @@ void showTime() {
       total_time_simulation.count() / (double)simulation_moves;
   double average_time_backpropagation =
       total_time_backpropagation.count() / (double)backpropagation_moves;
-  std::cout << "Selection avrage time: " << average_time_selection << " \n";
-  std::cout << "Expansion avrage time: " << average_time_expansion << " \n";
-  std::cout << "Simulation avrage time: " << average_time_simulation << " \n";
-  std::cout << "Backpropagation avrage time: " << average_time_backpropagation
+  std::cout << "Selection average time: " << average_time_selection << " \n";
+  std::cout << "Expansion average time: " << average_time_expansion << " \n";
+  std::cout << "Simulation average time: " << average_time_simulation << " \n";
+  std::cout << "Backpropagation average time: " << average_time_backpropagation
             << " \n";
 }
 
