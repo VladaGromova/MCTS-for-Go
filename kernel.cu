@@ -28,8 +28,6 @@ enum State { EMPTY, BLACK, WHITE };
 std::vector<std::pair<int, int>> NEIGHBOURS[SIZE][SIZE];
 State previousPositionForBlack[SIZE][SIZE];
 State previousPositionForWhite[SIZE][SIZE];
-__device__ State d_previousPositionForBlack[SIZE][SIZE];
-__device__ State d_previousPositionForWhite[SIZE][SIZE];
 std::chrono::duration<double> total_time_selection;
 std::chrono::duration<double> total_time_expansion;
 std::chrono::duration<double> total_time_simulation;
@@ -897,11 +895,6 @@ void showResults(Node *root_node, State actual_state) {
   std::cout << "-------------------------------------\n";
 }
 
-void copyDataToDevice(State previousPositionForBlack[SIZE][SIZE]) {
-    // Use cudaMemcpyToSymbol to copy data to the device symbol
-    cudaMemcpyToSymbol(d_previousPositionForBlack, previousPositionForBlack, SIZE * SIZE * sizeof(State));
-}
-
 void play(Node *root_node, State actual_state, bool isHumanVsComp,
           State humanState) {
   Node *actual_node;
@@ -923,7 +916,6 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
         } else {
           whoose_move = changeState(actual_state);
         }
-        
         start = std::chrono::high_resolution_clock::now();
         actual_node = findMaxUctChild(actual_node, whoose_move); // select
         end = std::chrono::high_resolution_clock::now();
@@ -974,11 +966,9 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
     if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
       actual_state = WHITE;
       copyBoard(root_node->board, previousPositionForWhite);
-      copyDataToDevice(previousPositionForBlack); //????
     } else {
       actual_state = BLACK;
       copyBoard(root_node->board, previousPositionForBlack);
-      copyDataToDevice(previousPositionForWhite);
     }
     ++mov_ind;
   }
