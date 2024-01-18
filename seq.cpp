@@ -27,6 +27,8 @@ long selection_moves = 0;
 long expansion_moves = 0;
 long simulation_moves = 0;
 long backpropagation_moves = 0;
+int total_taken_black = 0;
+int total_taken_white = 0;
 
 typedef struct Node {
   State board[SIZE][SIZE];
@@ -493,8 +495,8 @@ void showResults(Node* root_node, State actual_state){
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
-  int lost_black_stones = root_node->taken_black_stones;
-  int lost_white_stones = root_node->taken_white_stones;
+   int lost_black_stones = total_taken_black;
+  int lost_white_stones = total_taken_white;
   std::cout << "Lost black stones: " << lost_black_stones << '\n';
   std::cout << "Lost white stones: " << lost_white_stones << '\n';
   if ((main_results.first + lost_white_stones) >
@@ -570,6 +572,9 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
 
     std::cout << "\nNr: " << mov_ind << '\n';
     printBoard(root_node);
+    
+    total_taken_black = root_node->taken_black_stones;
+    total_taken_white = root_node->taken_white_stones;
     std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
     std::cout << "Lost white stones: " << root_node->taken_white_stones << '\n';
     if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
