@@ -19,7 +19,7 @@
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
 #define MAX_DEPTH 5 // tyle razy wykonamy te 3 etapy
 #define MOVEMENTS 40
-#define MAX_NUMBER_OF_THREADS 5
+#define MAX_NUMBER_OF_THREADS 1024
 
 enum State { EMPTY, BLACK, WHITE };
 
