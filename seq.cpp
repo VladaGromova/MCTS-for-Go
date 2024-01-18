@@ -274,8 +274,6 @@ void createChildren(Node *n, int i, int j, State state) {
   State tmp_board[SIZE][SIZE];
   copyBoard(n->board, tmp_board);
   auto taken_stones = couldPlaceStone(tmp_board, i, j, state).second;
-
-  // std::cout << "children " << i << " " << j << " created!\n";
   Node *childNode = new Node();
   copyBoard(n->board, childNode->board);
   childNode->board[i][j] = state;

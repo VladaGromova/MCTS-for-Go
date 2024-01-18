@@ -974,7 +974,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
     if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
       actual_state = WHITE;
       copyBoard(root_node->board, previousPositionForWhite);
-      copyDataToDevice(previousPositionForBlack);
+      copyDataToDevice(previousPositionForBlack); //????
     } else {
       actual_state = BLACK;
       copyBoard(root_node->board, previousPositionForBlack);
@@ -992,47 +992,59 @@ void emptyBoard(State actual_board[SIZE][SIZE]) {
   }
 }
 
-void loadBoard(State &actual_state, State actual_board[SIZE][SIZE]) {
-  std::cout << "Load your board\n";
-  std::cin.ignore();
-  std::string input;
-  int num_of_x = 0;
-  int num_of_o = 0;
-  for (int i = 0; i < SIZE; ++i) {
-    std::getline(std::cin, input);
-    int char_nr = 0;
-    for (char c : input) {
-      if (c == 'X' || c == 'x') {
-        ++num_of_x;
-        actual_board[i][char_nr] = BLACK;
-      } else if (c == 'O' || c == 'o') {
-        ++num_of_o;
-        actual_board[i][char_nr] = WHITE;
-      }
-      ++char_nr;
-    }
-  }
-  if (num_of_x != num_of_o) {
-    actual_state = WHITE;
-  }
-}
-
 void preProcessing(Node *root_node, State &actual_state,
                    State actual_board[SIZE][SIZE], bool &is_black,
-                   bool &isHumanVsComp, State &humanState) {
+                   bool &isHumanVsComp, State &humanState, bool is_load_board,
+                   std::string &filename) {
   std::srand(std::time(0));
   emptyBoard(actual_board);
   createNeighbours();
-  int tmp;
-  std::cout << "Do you want to load board? 1 - yes, 2 - no\n";
-  std::cin >> tmp;
-  if (tmp == 1) {
-    loadBoard(actual_state, actual_board);
-  }
-  copyBoard(actual_board, root_node->board);
-  copyBoard(actual_board, previousPositionForBlack);
-  copyBoard(actual_board, previousPositionForWhite);
 
+  int num_of_o = 0;
+  int num_of_x = 0;
+  if (is_load_board) {
+    std::ifstream file(filename);
+    if (file.is_open()) {
+      std::string line;
+      int i = 0;
+      while (getline(file, line)) {
+        int j = 0;
+        // std::cout << line << std::endl;
+        for (char c : line) {
+          if (c == 'o' || c == 'O') {
+            actual_board[i][j] = WHITE;
+            ++num_of_o;
+          } else if (c == 'x' || c == 'X') {
+            actual_board[i][j] = BLACK;
+            ++num_of_x;
+          }
+          ++j;
+        }
+        ++i;
+      }
+
+      file.close();
+    } else {
+      std::cerr << "Unable to open file: " << filename << std::endl;
+      exit(1);
+    }
+  }
+  if(num_of_o != num_of_x){
+    actual_state = WHITE;
+  }
+
+  copyBoard(actual_board, root_node->board);
+  std::cout << "Input board:\n";
+  printBoard(root_node->board);
+  if (actual_state == BLACK) {
+    copyBoard(actual_board, previousPositionForBlack);
+    emptyBoard(previousPositionForWhite);
+  } else {
+    copyBoard(actual_board, previousPositionForWhite);
+    emptyBoard(previousPositionForBlack);
+  }
+
+  int tmp;
   std::cout
       << "Select mode:\n 1 - copmuter vs computer\n 2 - human vs computer\n";
   std::cin >> tmp;
@@ -1065,11 +1077,16 @@ int main(int argc, char **argv) {
   State actual_board[SIZE][SIZE];
   Node *root_node = new Node;
   bool isHumanVsComp = false;
+bool is_load_board = false;
+  std::string filename = "";
+  if (argc >= 2) {
+    is_load_board = true;
+    filename = argv[1];
+  }
   State humanState = BLACK;
   preProcessing(root_node, actual_state, actual_board, is_black, isHumanVsComp,
-                humanState);
+                humanState, is_load_board, filename);
   play(root_node, actual_state, isHumanVsComp, humanState);
-  std::cout << "Now we will see results\n";
   showResults(root_node, actual_state);
   showTime();
   // delete[] root_node;
