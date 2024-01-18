@@ -3,6 +3,8 @@ NVCC = nvcc
 CXXFLAGS = -std=c++11
 NVCCFLAGS = -std=c++11
 
+all: seq.exe kernel.exe
+
 seq: seq.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< -lstdc++
 
