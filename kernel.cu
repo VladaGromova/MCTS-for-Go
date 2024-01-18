@@ -1,10 +1,11 @@
 #include <algorithm>
 #include <cstdlib>
-#include<cstdio>
+#include <cstdio>
 #include <ctime>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <fstream>
 #include <iostream>
 #include <math.h>
 #include <stdio.h>
@@ -114,57 +115,21 @@ void copyBoard(State source[SIZE][SIZE], State destination[SIZE][SIZE]) {
   }
 }
 
-void printBoard(Node *n) {
-  std::cout << '\t';
-  std::cout << '\t';
+void printBoard(State board[SIZE][SIZE]) {
+  std::cout << "    ";
   for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t';
-  }
-  std::cout << '\n';
-  std::cout << '\t';
-  std::cout << '\t';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << "_\t";
+    std::cout << i << ' ';
   }
   std::cout << '\n';
   for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t' << '|' << '\t';
-    for (int j = 0; j < SIZE; ++j) {
-      if (n->board[i][j] == EMPTY) {
-        std::cout << ".\t";
-      } else if (n->board[i][j] == BLACK) {
-        std::cout << "X\t";
-      } else {
-        std::cout << "O\t";
-      }
-    }
-    std::cout << '\n';
-  }
-  std::cout << '\n';
-}
-
-void printPrevPosBoard(State board[SIZE][SIZE]) {
-  std::cout << '\t';
-  std::cout << '\t';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t';
-  }
-  std::cout << '\n';
-  std::cout << '\t';
-  std::cout << '\t';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << "_\t";
-  }
-  std::cout << '\n';
-  for (int i = 0; i < SIZE; ++i) {
-    std::cout << i << '\t' << '|' << '\t';
+    std::cout << i << ' ' << ' ' << " ";
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY) {
-        std::cout << ".\t";
+        std::cout << ". ";
       } else if (board[i][j] == BLACK) {
-        std::cout << "X\t";
+        std::cout << "X ";
       } else {
-        std::cout << "O\t";
+        std::cout << "O ";
       }
     }
     std::cout << '\n';
@@ -294,17 +259,31 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       return std::make_pair(false, taken_stones);
     }
   }
-  if (state == BLACK) {
-    isKo(previousPositionForBlack, board);
+  // KO check
+  bool is_ko;
+  for (int i = 0; i < taken_stones.size(); ++i) {
+    board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
+  }
+  if (state == WHITE) {
+    is_ko = isKo(previousPositionForBlack, board);
   } else {
-    isKo(previousPositionForWhite, board);
+    is_ko = isKo(previousPositionForWhite, board);
+  }
+  if (is_ko) {
+    return std::make_pair(false, taken_stones);
+  }
+
+  for (int i = 0; i < taken_stones.size(); ++i) {
+    board[taken_stones[i].first][taken_stones[i].second] = alternativeState;
   }
   board[row][col] = EMPTY;
   return std::make_pair(true, taken_stones);
 }
 
 void createChildren(Node *n, int i, int j, State state) {
-  auto taken_stones = couldPlaceStone(n->board, i, j, state).second;
+  State tmp_board[SIZE][SIZE];
+  copyBoard(n->board, tmp_board);
+  auto taken_stones = couldPlaceStone(tmp_board, i, j, state).second;
   Node *childNode = new Node();
   copyBoard(n->board, childNode->board);
   childNode->board[i][j] = state;
@@ -336,7 +315,6 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
   State color;
   int white_territory = 0;
   int black_territory = 0;
-
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
@@ -378,9 +356,11 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
 }
 
 void expand(Node *n, State state) {
+  State tmp_board[SIZE][SIZE];
+  copyBoard(n->board, tmp_board);
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
-      if (couldPlaceStone(n->board, i, j, state).first) {
+      if (couldPlaceStone(tmp_board, i, j, state).first) {
         createChildren(
             n, i, j,
             state); // i j - tu ustawimy kamien i takie dziecko dodamy do n
@@ -885,20 +865,22 @@ Node *makeHumanMove(Node *parent, State state, int i, int j) {
 }
 
 void showResults(Node *root_node, State actual_state) {
-  std::cout << "Hello from show results\n";
-  printBoard(root_node);
+  std::cout << "Now we will see the results\n";
   std::cout << "Previous position for black:\n";
-  printPrevPosBoard(previousPositionForBlack);
+  printBoard(previousPositionForBlack);
   std::cout << "Previous position for white:\n";
-  printPrevPosBoard(previousPositionForWhite);
+  printBoard(previousPositionForWhite);
   if (actual_state == BLACK) {
     copyBoard(previousPositionForBlack, root_node->board);
   } else {
     copyBoard(previousPositionForWhite, root_node->board);
   }
+  std::cout << "Main board\n";
+  printBoard(root_node->board);
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
+  std::cout << "-------------------------------------\n";
   int lost_black_stones = total_taken_black;
   int lost_white_stones = total_taken_white;
   std::cout << "Lost black stones: " << total_taken_black << '\n';
@@ -912,6 +894,7 @@ void showResults(Node *root_node, State actual_state) {
   } else {
     std::cout << "DRAW\n";
   }
+  std::cout << "-------------------------------------\n";
 }
 
 void copyDataToDevice(State previousPositionForBlack[SIZE][SIZE]) {
@@ -927,7 +910,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
   int mov_ind = 0;
   int row_by_user, col_by_user;
   std::cout << "\nStart board: \n";
-  printBoard(root_node);
+  printBoard(root_node->board);
   std::chrono::high_resolution_clock::time_point start, end;
   while (mov_ind < MOVEMENTS) {
     max_depth_ind = 0;
@@ -983,7 +966,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
     }
 
     std::cout << "\nNr: " << mov_ind << '\n';
-    printBoard(root_node);
+    printBoard(root_node->board);
     total_taken_black = root_node->taken_black_stones;
     total_taken_white = root_node->taken_white_stones;
     std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
