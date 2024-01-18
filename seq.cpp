@@ -561,6 +561,7 @@ void play(Node* root_node, State actual_state, bool isHumanVsComp, State humanSt
     if (isHumanVsComp && actual_state == humanState) {
       std::cout << "Your move:\n";
       std::cin >> row_by_user >> col_by_user;
+      if(row_by_user==-1) return;
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
