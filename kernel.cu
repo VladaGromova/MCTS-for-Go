@@ -14,10 +14,15 @@
 #include <utility>
 #include <vector>
 
+/*
+Algorytm jest ten sam, więc bardziej szczegółowe wyjaśnienia są w pliku seq.cpp
+(komentarze) Różnią się częsci z symulacja
+*/
+
 #define C sqrt(2)
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
-#define MAX_DEPTH 5 // tyle razy wykonamy te 3 etapy
+#define MAX_DEPTH 5
 #define MOVEMENTS 40
 #define MAX_NUMBER_OF_THREADS 1024
 
@@ -46,7 +51,6 @@ typedef struct Node {
   int taken_white_stones = 0;
   unsigned int number_of_simulations = 0;
   double black_score = 0.0;
-  // double uct;
   ~Node() {
     for (Node *child : children) {
       delete child;
@@ -90,8 +94,7 @@ typedef struct Node {
 
 double calculateUct(Node *n, State state) {
   if (n->number_of_simulations == 0) {
-    return std::numeric_limits<double>::
-        infinity(); // Return infinity if the child has not been explored yet.
+    return std::numeric_limits<double>::infinity();
   }
   double w_i = 0.0;
   if (state == BLACK) {
@@ -142,11 +145,6 @@ bool isKo(State prev[SIZE][SIZE], State actual[SIZE][SIZE]) {
     }
   }
   return true;
-}
-
-void generateRandomCell(int &randomRow, int &randomCol) {
-  randomRow = std::rand() % SIZE;
-  randomCol = std::rand() % SIZE;
 }
 
 void createNeighbours() {
@@ -368,7 +366,9 @@ void expand(Node *n, State state) {
 
 void flattenCube(Node *n, State *flattenedCube) {
   int index = 0;
-  for (int k = 0; k < n->children.size(); ++k) {
+  for (int k = 0; k < n->children.size();
+       ++k) { // tworzymy kostkę żeby potem przesłać plansze wszystkich dzieci
+              // na GPU
     for (int i = 0; i < SIZE; ++i) {
       for (int j = 0; j < SIZE; ++j) {
         flattenedCube[index] = n->children[k]->board[i][j];
@@ -378,6 +378,9 @@ void flattenCube(Node *n, State *flattenedCube) {
   }
 }
 
+// analogia findReached, tylko zamiast wektora par używam 2-wymiarowych tablic
+// na wejsciu chain i reached są wypełnione -1 (dla łatwiejszego pilnowania
+// rozmiaru)
 __device__ void d_findReached(State board[SIZE][SIZE], int i, int j,
                               int chain[SIZE * SIZE][2],
                               int reached[SIZE * SIZE][2]) {
@@ -458,7 +461,8 @@ __device__ void d_findReached(State board[SIZE][SIZE], int i, int j,
     }
   }
 }
-// taken_stones, reached. chain sa wypelnione -1
+
+// taken_stones jest wypełnione -1
 __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
                                   State state,
                                   int taken_stones[SIZE * SIZE][2]) {
@@ -536,16 +540,11 @@ __device__ bool d_couldPlaceStone(State board[SIZE][SIZE], int row, int col,
 
 __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
   bool managed[SIZE][SIZE];
-  // printf("Board:\n");
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       managed[i][j] = false;
-      // printf("%d ", board[i][j]);
     }
-    // printf("\n");
   }
-
-  // printf("\n");
   int chain[SIZE * SIZE][2];
   int reached[SIZE * SIZE][2];
   State color;
@@ -561,14 +560,11 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
         d_findReached(board, i, j, chain, reached);
         int chain_size = 0;
         while (chain[chain_size][0] >= 0 && chain[chain_size][0] < SIZE &&
-               chain[chain_size][1] >= 0 &&
-               chain[chain_size][1] < SIZE /*chain[chain_size][0] != -1*/) {
-          managed[chain[chain_size][0]][chain[chain_size][1]] =
-              true; // cudamemcheck
+               chain[chain_size][1] >= 0 && chain[chain_size][1] < SIZE) {
+          managed[chain[chain_size][0]][chain[chain_size][1]] = true;
           ++chain_size;
         }
         color = board[reached[0][0]][reached[0][1]];
-        // int k = 0;
         int tmp = 0;
         while (reached[tmp][0] != -1) {
           if (board[reached[tmp][0]][reached[tmp][1]] != color) {
@@ -598,15 +594,18 @@ __device__ void d_computeTerritories(State board[SIZE][SIZE], int results[2]) {
   }
 }
 
-__global__ void
-randomPlaysKernel(State *d_flattenedCubes,
-                  double *d_black_scores,    // out
-                  int *d_taken_black_stones, // just info for point counting
-                  int *d_taken_white_stones, State *state_in_simulation) {
-  __shared__ double localCounts[MAX_NUMBER_OF_THREADS];
+__global__ void randomPlaysKernel(
+    State *d_flattenedCubes,
+    double *d_black_scores, // kazdy blok wpisze liczbe punktów czarnych po
+                            // wszystkich symulacjach dla odpowiadającego diecka
+    int *d_taken_black_stones, int *d_taken_white_stones,
+    State *state_in_simulation) {
+  __shared__ double
+      localCounts[MAX_NUMBER_OF_THREADS]; // kazdy wątek zazanacza w swojej
+                                          // komórce wynik symulacji dla
+                                          // czarnych (1, 0.5 lub 0)
   int taken_stones[SIZE * SIZE][2];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  // printf("Hello from kernel\n");
   curandState cs;
   curand_init(clock64() + tid, 0, 0, &cs);
   State board_for_random_play[SIZE][SIZE];
@@ -616,7 +615,6 @@ randomPlaysKernel(State *d_flattenedCubes,
           d_flattenedCubes[SIZE * SIZE * blockIdx.x + SIZE * i + j];
     }
   }
-  //__syncthreads(); // Synchronize threads to ensure all data is copied
   State state = BLACK;
   if (*state_in_simulation == BLACK) {
     state = WHITE;
@@ -630,7 +628,6 @@ randomPlaysKernel(State *d_flattenedCubes,
   bool could_place_stone;
 
   while (index < NUM_OF_MOVEMENTS_IN_SIMULATION) {
-
     for (int i = 0; i < SIZE * SIZE; ++i) {
       taken_stones[i][0] = -1;
       taken_stones[i][1] = -1;
@@ -684,23 +681,16 @@ randomPlaysKernel(State *d_flattenedCubes,
   if (state == WHITE) {
     results[1] = results[1] + 1;
   }
-  // d_computeTerritories(board_for_random_play, results);
-  __syncthreads();
-  // printf("Thread %d: B land = %d, W land = %d \n", tid, results[0],
-  // results[1]);
+  //__syncthreads();
   if ((results[0] + lost_white_stones) > (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 1.0;
-    // printf("Thread %d: here black won\n", tid);
   } else if ((results[0] + lost_white_stones) ==
              (results[1] + lost_black_stones)) {
     localCounts[threadIdx.x] = 0.5;
-    // printf("Thread %d: here is draw\n", tid);
-  } else {
-
-    // printf("Thread %d: here white won\n", tid);
   }
   __syncthreads();
-  if (threadIdx.x == 0) {
+  if (threadIdx.x ==
+      0) { // jeden główny wątek, który zapisze wuynik od całego bloku
     for (int i = 0; i < MAX_NUMBER_OF_THREADS; ++i) {
       d_black_scores[blockIdx.x] += localCounts[i];
     }
@@ -732,11 +722,10 @@ void simulate(Node *n, State state) {
               << cudaGetErrorString(cudaStatus) << std::endl;
     exit(1);
   }
-  double *h_black_scores =
-      new double[n->children.size()]; // kazde dziecko ma NUM_OF_THREADS
-                                      // symulacji, tu kazde zapisze liczba
-                                      // wygranych dla czarnych
-  double *d_black_scores;
+  double *h_black_scores = new double[n->children.size()];
+  double *d_black_scores; // kazde dziecko ma NUM_OF_THREADS
+                          // symulacji, tu kazde zapisze liczba
+                          // wygranych dla czarnych
   cudaStatus = cudaMalloc(&d_black_scores, n->children.size() * sizeof(double));
   if (cudaStatus != cudaSuccess) {
     std::cout << "[ERROR] cudaMalloc (d_black_scores) failed: "
@@ -981,7 +970,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
       root_node = findMaxUctChild(root_node,
-                                  actual_state); // na pewno bo tu robimy ruch
+                                  actual_state);
     }
 
     std::cout << "\nNr: " << mov_ind << '\n';
@@ -1026,7 +1015,6 @@ void preProcessing(Node *root_node, State &actual_state,
       int i = 0;
       while (getline(file, line)) {
         int j = 0;
-        // std::cout << line << std::endl;
         for (char c : line) {
           if (c == 'o' || c == 'O') {
             actual_board[i][j] = WHITE;
@@ -1113,6 +1101,6 @@ int main(int argc, char **argv) {
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node, actual_state);
   showTime();
-  // delete[] root_node;
+  delete root_node;
   return 0;
 }

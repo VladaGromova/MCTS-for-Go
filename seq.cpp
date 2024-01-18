@@ -12,8 +12,9 @@
 #define C sqrt(2)
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
-#define MAX_DEPTH 15 // tyle razy wykonamy te 3 etapy
-#define MOVEMENTS 40
+#define MAX_DEPTH 15 // zasoby na 4 etapy
+#define MOVEMENTS 40 // maksymalna liczba ruchów
+#define MAX_NUM_OF_GEN_TRIES 20
 
 enum State { EMPTY, BLACK, WHITE };
 
@@ -39,7 +40,6 @@ typedef struct Node {
   int taken_white_stones = 0;
   unsigned int number_of_simulations = 0;
   double black_score = 0.0;
-  // double uct;
   ~Node() {
     for (Node *child : children) {
       delete child;
@@ -83,8 +83,8 @@ typedef struct Node {
 
 double calculateUct(Node *n, State state) {
   if (n->number_of_simulations == 0) {
-    return std::numeric_limits<double>::
-        infinity(); // Return infinity if the child has not been explored yet.
+    return std::numeric_limits<double>::infinity(); // jeśli nie było żadnego
+                                                    // expand od danego dziecka
   }
   double w_i = 0.0;
   if (state == BLACK) {
@@ -164,7 +164,9 @@ void createNeighbours() {
 }
 
 std::pair<std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>>
-findReached(State board[SIZE][SIZE], int i, int j) {
+findReached(State board[SIZE][SIZE], int i,
+            int j) { // zwraca łańcuch kamieni (koloru board[i][j]) oraz zasięg
+                     // (1 w każdą stronę) - chain, reached
   State color = board[i][j];
   std::vector<std::pair<int, int>> chain, reached;
   std::vector<std::pair<int, int>> frontier = {std::make_pair(i, j)};
@@ -177,11 +179,13 @@ findReached(State board[SIZE][SIZE], int i, int j) {
     for (auto fn : NEIGHBOURS[current_fc.first][current_fc.second]) {
       if (board[fn.first][fn.second] == color &&
           std::find(chain.begin(), chain.end(), fn) == chain.end()) {
-        frontier.push_back(fn);
+        frontier.push_back(
+            fn); // jesli węzeł ma ten sam kolor to dodajemy do chain
       } else if (board[fn.first][fn.second] != color &&
                  std::find(reached.begin(), reached.end(), fn) ==
                      reached.end()) {
-        reached.push_back(fn);
+        reached.push_back(
+            fn); // jesli węzeł ma inny kolor to dodajemy do reached
       }
     }
   }
@@ -197,21 +201,28 @@ State changeState(State state) {
 }
 
 std::pair<bool, std::vector<std::pair<int, int>>>
-couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
+couldPlaceStone(State board[SIZE][SIZE], int row, int col,
+                State state) { // zwraca pare: 1- czy możemy postawić kamień
+                               // koloru state na board[row][col]
+                               // 2 - łańcuch kamienie ktore możemy zdobyć
+                               // ustawiając kamień na board[row][col]
   std::vector<std::pair<int, int>> taken_stones =
       std::vector<std::pair<int, int>>();
-  if (board[row][col] != EMPTY)
+  if (board[row][col] != EMPTY) { // jesli dany węzeł już jest zajęty
     return std::make_pair(false, taken_stones);
+  }
   board[row][col] = state;
   State alternativeState = changeState(state);
-
   std::vector<std::pair<int, int>> stones_reached_by_mine =
       findReached(board, row, col).second;
-  // tu sprawdzamy czy cos zabieramy u przeciwnika
+  // sprawdzamy czy cos zabieramy u przeciwnika
   for (int i = 0; i < stones_reached_by_mine.size(); ++i) {
     if (board[stones_reached_by_mine[i].first]
              [stones_reached_by_mine[i].second] !=
-        EMPTY) { // dla kazego kamienia z sąsiadujących
+        EMPTY) { // dla kazego kamienia z sąsiadujących sprawdzamy kamienie
+                 // jakiego koloru są wokół niego
+      // jeśli pewny łańcuch przeciwnika sąsiaduje tylko z kamieniami mojego
+      // koloru, to możemy zdobyć ten łańcuch
       auto tmp_chain_reached =
           findReached(board, stones_reached_by_mine[i].first,
                       stones_reached_by_mine[i].second);
@@ -219,13 +230,13 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       auto reached_by_opponent = tmp_chain_reached.second;
       int j = 0;
       for (j = 0; j < reached_by_opponent.size();
-           ++j) { // dla kazdego wezla co jest obok kamienia przeciwnika
+           ++j) { // dla kazdego węzła co jest obok kamienia przeciwnika
         if (board[reached_by_opponent[j].first]
                  [reached_by_opponent[j].second] != state) {
           break;
         }
       }
-      if (j == reached_by_opponent.size()) {
+      if (j == reached_by_opponent.size()) { // możemy zabrać te kamienie
         for (int ind = 0; ind < potential_captured.size(); ++ind) {
           taken_stones.push_back(std::make_pair(
               potential_captured[ind].first, potential_captured[ind].second));
@@ -233,8 +244,7 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       }
     }
   }
-  // end
-  // jak nic nie zabieramy to czy nie ma samobojstwa
+  // jak nic nie zabieramy to sprawdzamy czy nie ma samobójstwa
   if (taken_stones.size() == 0) {
     int j = 0;
     for (j = 0; j < stones_reached_by_mine.size(); ++j) {
@@ -244,12 +254,13 @@ couldPlaceStone(State board[SIZE][SIZE], int row, int col, State state) {
       }
     }
     if (j == stones_reached_by_mine
-                 .size()) { // only opponent stones surround me, suicide
+                 .size()) { // przypadek samobójstwa, no wokół mojego kamienia
+                            // są tylko kamienie przeciwnika
       board[row][col] = EMPTY;
       return std::make_pair(false, taken_stones);
     }
   }
-  // KO check
+  // sprawdzamy czy zasada KO jest spełniona
   bool is_ko;
   for (int i = 0; i < taken_stones.size(); ++i) {
     board[taken_stones[i].first][taken_stones[i].second] = EMPTY;
@@ -362,8 +373,11 @@ State randomPlays(Node *n, State state) {
       generateRandomCell(random_row, random_col);
       result =
           couldPlaceStone(board_for_random_play, random_row, random_col, state);
-    } while (!result.first && num_of_tries < 20);
-    if (num_of_tries == 20)
+    } while (!result.first &&
+             num_of_tries <
+                 MAX_NUM_OF_GEN_TRIES); // mamy MAX_NUM_OF_GEN_TRIES prób na
+                                        // wygenerowanie poprawnego węzła
+    if (num_of_tries == MAX_NUM_OF_GEN_TRIES)
       break;
     std::vector<std::pair<int, int>> taken_stones = result.second;
     board_for_random_play[random_row][random_col] = state;
@@ -372,15 +386,14 @@ State randomPlays(Node *n, State state) {
     } else {
       lost_black_stones += taken_stones.size();
     }
-    // change state from black to white and vice versa
     state = changeState(state);
-    for (int i = 0; i < taken_stones.size(); ++i) { // taking oppoents' stones
+    for (int i = 0; i < taken_stones.size(); ++i) { // zabieramy kamienie przeciwnika
       board_for_random_play[taken_stones[i].first][taken_stones[i].second] =
           EMPTY;
     }
     num_of_tries = 0;
   }
-  // count scores and territories
+  // obliczmy punkty i terytorium
   auto results = computeTerritories(board_for_random_play);
   if ((results.first + lost_white_stones) >
       (results.second + lost_black_stones)) {
@@ -515,7 +528,7 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
           whoose_move = changeState(actual_state);
         }
         start = std::chrono::high_resolution_clock::now();
-        actual_node = findMaxUctChild(actual_node, whoose_move); // select
+        actual_node = findMaxUctChild(actual_node, whoose_move); // selection
         end = std::chrono::high_resolution_clock::now();
         ++selection_moves;
         total_time_selection +=
@@ -603,7 +616,6 @@ void preProcessing(Node *root_node, State &actual_state,
       int i = 0;
       while (getline(file, line)) {
         int j = 0;
-        // std::cout << line << std::endl;
         for (char c : line) {
           if (c == 'o' || c == 'O') {
             actual_board[i][j] = WHITE;
@@ -623,7 +635,7 @@ void preProcessing(Node *root_node, State &actual_state,
       exit(1);
     }
   }
-  if(num_of_o != num_of_x){
+  if (num_of_o != num_of_x) {
     actual_state = WHITE;
   }
 
@@ -688,5 +700,6 @@ int main(int argc, char **argv) {
   play(root_node, actual_state, isHumanVsComp, humanState);
   showResults(root_node, actual_state);
   showTime();
+  delete root_node;
   return 0;
 }
