@@ -5,11 +5,11 @@ NVCCFLAGS = -std=c++11
 
 all: seq.exe kernel.exe
 
-seq: seq.cpp
+seq.exe: seq.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< -lstdc++
 
-kernel: kernel.cu
+kernel.exe: kernel.cu
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:
-	rm -f seq kernel
+	rm -f seq.exe kernel.exe
