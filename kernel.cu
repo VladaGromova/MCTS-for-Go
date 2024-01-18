@@ -35,6 +35,8 @@ long selection_moves = 0;
 long expansion_moves = 0;
 long simulation_moves = 0;
 long backpropagation_moves = 0;
+int total_taken_black = 0;
+int total_taken_white = 0;
 
 typedef struct Node {
   State board[SIZE][SIZE];
@@ -337,7 +339,6 @@ std::pair<int, int> computeTerritories(State board[SIZE][SIZE]) {
     for (int j = 0; j < SIZE; ++j) {
       if (board[i][j] == EMPTY && !managed[i][j]) {
         auto res = findReached(board, i, j);
-        std::cout << "i = " << i << " j = " << j << '\n';
         chain = res.first;
         reached = res.second;
         for (auto p : chain) {
@@ -896,10 +897,10 @@ void showResults(Node *root_node, State actual_state) {
   auto main_results = computeTerritories(root_node->board);
   std::cout << "\nBlack territory: " << main_results.first << '\n';
   std::cout << "White territory: " << main_results.second << '\n';
-  int lost_black_stones = root_node->taken_black_stones;
-  int lost_white_stones = root_node->taken_white_stones;
-  std::cout << "Lost black stones: " << lost_black_stones << '\n';
-  std::cout << "Lost white stones: " << lost_white_stones << '\n';
+  int lost_black_stones = total_taken_black;
+  int lost_white_stones = total_taken_white;
+  std::cout << "Lost black stones: " << total_taken_black << '\n';
+  std::cout << "Lost white stones: " << total_taken_white << '\n';
   if ((main_results.first + lost_white_stones) >
       (main_results.second + lost_black_stones)) {
     std::cout << "BLACK won\n";
@@ -970,21 +971,14 @@ void play(Node *root_node, State actual_state, bool isHumanVsComp,
       root_node =
           makeHumanMove(root_node, actual_state, row_by_user, col_by_user);
     } else {
-      // for (int i = 0; i < root_node->children.size(); ++i) {
-      //   std::cout << "Child nr " << i << ": numOdSimulations = "
-      //             << root_node->children[i]->number_of_simulations
-      //             << ", black score = " << root_node->children[i]->black_score
-      //             << ", taken B = "
-      //             << root_node->children[i]->taken_black_stones
-      //             << ", taken W = "
-      //             << root_node->children[i]->taken_white_stones << '\n';
-      // }
       root_node = findMaxUctChild(root_node,
                                   actual_state); // na pewno bo tu robimy ruch
     }
 
     std::cout << "\nNr: " << mov_ind << '\n';
     printBoard(root_node);
+    total_taken_black = root_node->taken_black_stones;
+    total_taken_white = root_node->taken_white_stones;
     std::cout << "Lost black stones: " << root_node->taken_black_stones << '\n';
     std::cout << "Lost white stones: " << root_node->taken_white_stones << '\n';
     if (actual_state == BLACK) { // przekazujemy prawo ruchu innemy graczowi
