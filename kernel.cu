@@ -22,7 +22,7 @@ Algorytm jest ten sam, więc bardziej szczegółowe wyjaśnienia są w pliku seq
 #define C sqrt(2)
 #define SIZE 9
 #define NUM_OF_MOVEMENTS_IN_SIMULATION 10
-#define MAX_DEPTH 500
+#define MAX_DEPTH 150
 #define MOVEMENTS 40
 #define MAX_NUMBER_OF_THREADS 1024
 
